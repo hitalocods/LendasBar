@@ -27,7 +27,7 @@ export function KitchenDashboard() {
     if (!response.ok) return;
 
     const data = (await response.json()) as { orders?: typeof orders };
-    if (data.orders?.length) {
+    if (data.orders) {
       setOrders(data.orders);
     }
   }, []);

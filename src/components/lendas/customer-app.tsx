@@ -16,9 +16,9 @@ import { toThemeStyle } from "@/lib/restaurant-theme";
 type Product = (typeof menuItems)[number];
 type Step = "welcome" | "menu" | "cart" | "tracking" | "actions";
 
-export function CustomerApp({ tableId }: { tableId: string }) {
-  const [step, setStep] = useState<Step>("welcome");
-  const [name, setName] = useState("");
+export function CustomerApp({ tableId, initialName }: { tableId: string; initialName: string }) {
+  const [step, setStep] = useState<Step>(initialName ? "menu" : "welcome");
+  const [name, setName] = useState(initialName);
   const [category, setCategory] = useState(categories[0]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState(1);
@@ -84,6 +84,7 @@ export function CustomerApp({ tableId }: { tableId: string }) {
   }
 
   function enterTable() {
+    document.cookie = `lendas_mesa_${tableId}_name=${encodeURIComponent(name.trim())}; path=/mesa/${tableId}; max-age=2592000; samesite=lax`;
     joinTable(name, tableId);
     setStep("menu");
   }

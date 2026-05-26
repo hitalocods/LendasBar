@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+
 type OrderPayload = {
   restaurantId?: string;
   tableId?: string;
@@ -80,6 +82,10 @@ export async function GET() {
       status: statusLabel[order.status] ?? "Pendente",
       minutes: Math.max(0, Math.round((Date.now() - order.createdAt.getTime()) / 60000))
     }))
+  }, {
+    headers: {
+      "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate"
+    }
   });
 }
 
