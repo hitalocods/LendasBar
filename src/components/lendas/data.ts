@@ -4,6 +4,7 @@ export const menuItems = [
     desc: "Frango desfiado com catupiry",
     price: 7.9,
     category: "Coxinhas",
+    imageUrl: "",
     tone: "from-amber-500/30 to-red-950/30"
   },
   {
@@ -11,6 +12,7 @@ export const menuItems = [
     desc: "Massa crocante e recheio cremoso da casa",
     price: 8.9,
     category: "Coxinhas",
+    imageUrl: "",
     tone: "from-orange-400/30 to-zinc-950"
   },
   {
@@ -18,6 +20,7 @@ export const menuItems = [
     desc: "Blend da casa, cheddar e molho red",
     price: 29.9,
     category: "Hamburgueres",
+    imageUrl: "",
     tone: "from-red-700/30 to-zinc-950"
   },
   {
@@ -25,6 +28,7 @@ export const menuItems = [
     desc: "Batata crocante, bacon e creme cheddar",
     price: 16.9,
     category: "Porcoes",
+    imageUrl: "",
     tone: "from-yellow-500/25 to-zinc-950"
   }
 ];

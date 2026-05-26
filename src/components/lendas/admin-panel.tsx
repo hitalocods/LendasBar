@@ -3,14 +3,27 @@
 import Image from "next/image";
 import { QRCodeSVG } from "qrcode.react";
 import { BarChart3, Boxes, Grid2X2, ReceiptText, Settings, ShoppingBag, Users, WalletCards } from "lucide-react";
+import { FormEvent, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { formatCurrency, cn } from "@/lib/utils";
 import { useLendasStore } from "@/store/lendas-store";
 
+type AdminView = "dashboard" | "cardapio" | "categorias" | "mesas" | "pedidos" | "configuracoes";
+type Product = {
+  id: string;
+  name: string;
+  desc: string;
+  category: string;
+  price: number;
+  imageUrl?: string;
+};
+
 export function AdminPanel() {
   const { orders, waiterCalls, billRequests } = useLendasStore();
+  const [activeView, setActiveView] = useState<AdminView>("dashboard");
   const activeOrders = orders.filter((order) => order.status !== "Entregue").length;
   const revenue = orders.reduce((total, order) => total + order.total, 0);
 
@@ -29,17 +42,24 @@ export function AdminPanel() {
           </div>
           <nav className="space-y-1 text-sm text-zinc-400">
             {[
-              [BarChart3, "Dashboard"],
-              [Boxes, "Cardapio"],
-              [Grid2X2, "Categorias"],
-              [Users, "Mesas"],
-              [ReceiptText, "Pedidos"],
-              [Settings, "Configuracoes"]
-            ].map(([Icon, label], index) => (
-              <div key={label as string} className={cn("flex items-center gap-2 rounded-md px-3 py-2", index === 0 && "bg-red-600 text-white")}>
+              [BarChart3, "Dashboard", "dashboard"],
+              [Boxes, "Cardapio", "cardapio"],
+              [Grid2X2, "Categorias", "categorias"],
+              [Users, "Mesas", "mesas"],
+              [ReceiptText, "Pedidos", "pedidos"],
+              [Settings, "Configuracoes", "configuracoes"]
+            ].map(([Icon, label, view]) => (
+              <button
+                key={label as string}
+                onClick={() => setActiveView(view as AdminView)}
+                className={cn(
+                  "flex w-full items-center gap-2 rounded-md px-3 py-2 text-left transition hover:bg-white/[0.06]",
+                  activeView === view && "bg-red-600 text-white"
+                )}
+              >
                 <Icon className="h-4 w-4" />
                 {label as string}
-              </div>
+              </button>
             ))}
           </nav>
         </aside>
@@ -48,49 +68,149 @@ export function AdminPanel() {
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-red-300">Painel administrativo</p>
-              <h1 className="text-2xl font-semibold">Gestao do restaurante</h1>
+              <h1 className="text-2xl font-semibold">
+                {activeView === "cardapio" ? "Cardapio e produtos" : "Gestao do restaurante"}
+              </h1>
             </div>
             <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-100">Aberto agora</Badge>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-4">
-            <Metric icon={ShoppingBag} label="Pedidos ativos" value={String(activeOrders)} />
-            <Metric icon={WalletCards} label="Faturamento hoje" value={formatCurrency(revenue)} />
-            <Metric icon={Users} label="Chamados" value={String(waiterCalls)} />
-            <Metric icon={ReceiptText} label="Contas solicitadas" value={String(billRequests)} />
-          </div>
+          {activeView === "dashboard" && (
+            <>
+              <div className="grid gap-3 md:grid-cols-4">
+                <Metric icon={ShoppingBag} label="Pedidos ativos" value={String(activeOrders)} />
+                <Metric icon={WalletCards} label="Faturamento hoje" value={formatCurrency(revenue)} />
+                <Metric icon={Users} label="Chamados" value={String(waiterCalls)} />
+                <Metric icon={ReceiptText} label="Contas solicitadas" value={String(billRequests)} />
+              </div>
+              <TablesAndQr />
+            </>
+          )}
 
-          <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
-            <Card className="border-white/10 bg-black/45 p-4">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-semibold">Mesas</h2>
-                <Button variant="secondary" size="sm">Ver todas</Button>
-              </div>
-              <div className="space-y-2">
-                {["Mesa 01", "Mesa 02", "Mesa 03", "Mesa 12", "Mesa 18"].map((table, index) => (
-                  <div key={table} className="flex items-center justify-between rounded-md border border-white/10 bg-white/[0.035] px-3 py-3 text-sm">
-                    <span>{table}</span>
-                    <span className={cn("text-xs", index === 3 ? "text-amber-300" : "text-emerald-300")}>
-                      {index === 3 ? "Aguardando conta" : "Aberta"}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </Card>
-
-            <Card className="border-white/10 bg-black/45 p-4">
-              <h2 className="mb-1 text-lg font-semibold">Gerar QR Code</h2>
-              <p className="mb-4 text-sm text-zinc-500">Selecione a mesa e imprima o acesso do cliente.</p>
-              <div className="mb-4 rounded-md border border-white/10 bg-white/[0.035] px-3 py-3 text-sm">Mesa 12</div>
-              <div className="grid place-items-center rounded-md bg-white p-4">
-                <QRCodeSVG value="https://lendas2018.app/mesa/12" size={180} />
-              </div>
-              <Button className="mt-4 w-full">Imprimir QR Code</Button>
-            </Card>
-          </div>
+          {activeView === "cardapio" && <MenuManager />}
+          {activeView === "mesas" && <TablesAndQr />}
+          {activeView === "categorias" && <Placeholder title="Categorias" copy="As categorias sao criadas automaticamente ao cadastrar produtos." />}
+          {activeView === "pedidos" && <Placeholder title="Pedidos" copy="O historico completo sera ligado aos filtros por data e mesa." />}
+          {activeView === "configuracoes" && <Placeholder title="Configuracoes" copy="Aqui ficarao tema, logo, horarios e dados do restaurante." />}
         </section>
       </div>
     </main>
+  );
+}
+
+function TablesAndQr() {
+  return (
+    <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
+      <Card className="border-white/10 bg-black/45 p-4">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Mesas</h2>
+          <Button variant="secondary" size="sm">Ver todas</Button>
+        </div>
+        <div className="space-y-2">
+          {["Mesa 01", "Mesa 02", "Mesa 03", "Mesa 12", "Mesa 18"].map((table, index) => (
+            <div key={table} className="flex items-center justify-between rounded-md border border-white/10 bg-white/[0.035] px-3 py-3 text-sm">
+              <span>{table}</span>
+              <span className={cn("text-xs", index === 3 ? "text-amber-300" : "text-emerald-300")}>
+                {index === 3 ? "Aguardando conta" : "Aberta"}
+              </span>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card className="border-white/10 bg-black/45 p-4">
+        <h2 className="mb-1 text-lg font-semibold">Gerar QR Code</h2>
+        <p className="mb-4 text-sm text-zinc-500">Selecione a mesa e imprima o acesso do cliente.</p>
+        <div className="mb-4 rounded-md border border-white/10 bg-white/[0.035] px-3 py-3 text-sm">Mesa 12</div>
+        <div className="grid place-items-center rounded-md bg-white p-4">
+          <QRCodeSVG value="https://lendasbar.vercel.app/mesa/12" size={180} />
+        </div>
+        <Button className="mt-4 w-full">Imprimir QR Code</Button>
+      </Card>
+    </div>
+  );
+}
+
+function MenuManager() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [form, setForm] = useState({
+    name: "",
+    description: "",
+    category: "Coxinhas",
+    price: "",
+    imageUrl: ""
+  });
+
+  async function loadProducts() {
+    const response = await fetch("/api/products", { cache: "no-store" });
+    if (!response.ok) return;
+    const data = (await response.json()) as { products?: Product[] };
+    setProducts(data.products ?? []);
+  }
+
+  useEffect(() => {
+    window.setTimeout(loadProducts, 0);
+  }, []);
+
+  async function submitProduct(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const response = await fetch("/api/products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...form,
+        price: Number(form.price.replace(",", "."))
+      })
+    });
+
+    if (!response.ok) return;
+
+    setForm({ name: "", description: "", category: form.category, price: "", imageUrl: "" });
+    await loadProducts();
+  }
+
+  return (
+    <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
+      <Card className="border-white/10 bg-black/45 p-4">
+        <h2 className="mb-4 text-lg font-semibold">Adicionar produto</h2>
+        <form className="space-y-3" onSubmit={submitProduct}>
+          <Input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Nome do produto" />
+          <Input value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="Descricao" />
+          <Input value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} placeholder="Categoria" />
+          <Input value={form.price} onChange={(event) => setForm({ ...form, price: event.target.value })} placeholder="Preco, ex: 8,90" />
+          <Input value={form.imageUrl} onChange={(event) => setForm({ ...form, imageUrl: event.target.value })} placeholder="URL da foto do produto" />
+          <Button className="w-full" type="submit">Salvar produto</Button>
+        </form>
+        <p className="mt-3 text-xs text-zinc-500">Por enquanto use uma URL de imagem. O upload direto via UploadThing/Cloudinary fica preparado no proximo passo.</p>
+      </Card>
+
+      <Card className="border-white/10 bg-black/45 p-4">
+        <h2 className="mb-4 text-lg font-semibold">Produtos cadastrados</h2>
+        <div className="grid gap-3 md:grid-cols-2">
+          {products.map((product) => (
+            <div key={product.id} className="flex gap-3 rounded-lg border border-white/10 bg-white/[0.035] p-3">
+              <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-md bg-zinc-900">
+                {product.imageUrl ? <Image src={product.imageUrl} alt={product.name} fill className="object-cover" /> : null}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">{product.name}</p>
+                <p className="text-xs text-zinc-500">{product.category}</p>
+                <p className="mt-2 text-sm text-red-300">{formatCurrency(product.price)}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function Placeholder({ title, copy }: { title: string; copy: string }) {
+  return (
+    <Card className="border-white/10 bg-black/45 p-6">
+      <h2 className="text-lg font-semibold">{title}</h2>
+      <p className="mt-2 text-sm text-zinc-500">{copy}</p>
+    </Card>
   );
 }
 

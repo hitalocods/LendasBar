@@ -29,6 +29,7 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
   const [step, setStep] = useState<Step>(initialName ? "menu" : "welcome");
   const [name, setName] = useState(initialName);
   const [category, setCategory] = useState(categories[0]);
+  const [products, setProducts] = useState<Product[]>(menuItems);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState(1);
   const {
@@ -45,14 +46,27 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
   const customerCart = cart.filter((line) => line.customerName === customerName);
   const cartCount = customerCart.reduce((total, line) => total + line.quantity, 0);
   const tableBillTotal = cart.reduce((total, line) => total + line.quantity * line.unitPrice, 0);
+  const liveCategories = useMemo(() => Array.from(new Set(products.map((item) => item.category))), [products]);
 
   const filteredProducts = useMemo(
     () => {
-      const categoryProducts = menuItems.filter((item) => item.category === category);
-      return categoryProducts.length ? categoryProducts : menuItems;
+      const categoryProducts = products.filter((item) => item.category === category);
+      return categoryProducts.length ? categoryProducts : products;
     },
-    [category]
+    [category, products]
   );
+
+  useEffect(() => {
+    fetch("/api/products", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: { products?: Product[] } | null) => {
+        if (data?.products?.length) {
+          setProducts(data.products);
+          setCategory(data.products[0].category);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   function addSelectedProduct() {
     if (!selectedProduct) return;
@@ -111,6 +125,7 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
                 customerName={customerName}
                 connectedUsers={tableSession.activeUsers.length}
                 category={category}
+                categories={liveCategories.length ? liveCategories : categories}
                 setCategory={setCategory}
                 products={filteredProducts}
                 onSelectProduct={setSelectedProduct}
@@ -181,6 +196,7 @@ function MenuScreen({
   customerName,
   connectedUsers,
   category,
+  categories,
   setCategory,
   products,
   onSelectProduct,
@@ -191,6 +207,7 @@ function MenuScreen({
   customerName: string;
   connectedUsers: number;
   category: string;
+  categories: string[];
   setCategory: (category: string) => void;
   products: Product[];
   onSelectProduct: (product: Product) => void;
@@ -233,8 +250,12 @@ function MenuScreen({
         {products.map((item) => (
           <button key={item.name} onClick={() => onSelectProduct(item)} className="w-full text-left">
             <Card className="flex items-center gap-3 border-white/10 bg-white/[0.045] p-3">
-              <div className={cn("grid h-20 w-20 shrink-0 place-items-center rounded-lg bg-gradient-to-br", item.tone)}>
-                <Utensils className="h-8 w-8 text-red-100" />
+              <div className={cn("relative grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-lg bg-gradient-to-br", item.tone)}>
+                {item.imageUrl ? (
+                  <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
+                ) : (
+                  <Utensils className="h-8 w-8 text-red-100" />
+                )}
               </div>
               <div className="min-w-0 flex-1">
                 <h2 className="truncate text-sm font-semibold">{item.name}</h2>
@@ -278,8 +299,12 @@ function ProductModal({
   return (
     <div className="fixed inset-0 z-40 grid place-items-end bg-black/70 px-3 pb-3 backdrop-blur-sm">
       <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="w-full max-w-[430px] overflow-hidden rounded-2xl border border-white/10 bg-[#101114] shadow-2xl">
-        <div className={cn("grid h-56 place-items-center bg-gradient-to-br", product.tone)}>
-          <Utensils className="h-20 w-20 text-red-100" />
+        <div className={cn("relative grid h-56 place-items-center overflow-hidden bg-gradient-to-br", product.tone)}>
+          {product.imageUrl ? (
+            <Image src={product.imageUrl} alt={product.name} fill className="object-cover" />
+          ) : (
+            <Utensils className="h-20 w-20 text-red-100" />
+          )}
         </div>
         <div className="p-5">
           <h2 className="text-2xl font-semibold">{product.name}</h2>

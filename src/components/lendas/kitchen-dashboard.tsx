@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { formatCurrency, cn } from "@/lib/utils";
 import { OrderStatus, useLendasStore } from "@/store/lendas-store";
+import { menuItems } from "@/components/lendas/data";
 
 const statusStyles: Record<OrderStatus, string> = {
   Pendente: "border-red-500/30 bg-red-500/10 text-red-100",
@@ -20,6 +21,7 @@ const statusStyles: Record<OrderStatus, string> = {
 export function KitchenDashboard() {
   const { orders: demoOrders, advanceOrder: advanceDemoOrder } = useLendasStore();
   const [orders, setOrders] = useState(demoOrders);
+  const [activeView, setActiveView] = useState<"pedidos" | "historico" | "cardapio" | "mesas">("pedidos");
   const columns: OrderStatus[] = ["Pendente", "Confirmado", "Em preparo", "Pronto", "Entregue"];
 
   const loadOrders = useCallback(async () => {
@@ -59,10 +61,22 @@ export function KitchenDashboard() {
             <Image src="/lendas-logo.png" alt="LENDAS 2018" fill className="object-cover" />
           </div>
           <div className="space-y-2 text-xs text-zinc-400">
-            {["Pedidos", "Historico", "Cardapio", "Mesas"].map((item, index) => (
-              <div key={item} className={cn("rounded-md px-3 py-2", index === 0 && "bg-red-600 text-white")}>
+            {[
+              ["Pedidos", "pedidos"],
+              ["Historico", "historico"],
+              ["Cardapio", "cardapio"],
+              ["Mesas", "mesas"]
+            ].map(([item, view]) => (
+              <button
+                key={item}
+                onClick={() => setActiveView(view as typeof activeView)}
+                className={cn(
+                  "w-full rounded-md px-3 py-2 text-left transition hover:bg-white/[0.06]",
+                  activeView === view && "bg-red-600 text-white"
+                )}
+              >
                 {item}
-              </div>
+              </button>
             ))}
           </div>
         </aside>
@@ -71,7 +85,12 @@ export function KitchenDashboard() {
           <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-red-300">Painel da cozinha</p>
-              <h1 className="text-2xl font-semibold">Fila de preparo realtime</h1>
+              <h1 className="text-2xl font-semibold">
+                {activeView === "pedidos" && "Fila de preparo realtime"}
+                {activeView === "historico" && "Historico de entregas"}
+                {activeView === "cardapio" && "Consulta do cardapio"}
+                {activeView === "mesas" && "Mesas em atendimento"}
+              </h1>
             </div>
             <div className="flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-100">
               <ChefHat className="h-4 w-4" />
@@ -79,8 +98,9 @@ export function KitchenDashboard() {
             </div>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {columns.map((status) => (
+          {activeView === "pedidos" && (
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+              {columns.map((status) => (
               <div key={status} className="min-h-[70vh] rounded-lg border border-white/10 bg-white/[0.035] p-3">
                 <div className="mb-3 flex items-center justify-between">
                   <span className="text-sm font-semibold">{status}</span>
@@ -118,9 +138,47 @@ export function KitchenDashboard() {
                       </Card>
                     ))}
                 </div>
-              </div>
-            ))}
-          </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {activeView === "historico" && (
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {orders
+                .filter((order) => order.status === "Entregue")
+                .map((order) => (
+                  <Card key={order.id} className="border-white/10 bg-zinc-950/80 p-3">
+                    <p className="text-sm font-semibold">{order.table}</p>
+                    <p className="text-xs text-zinc-500">{order.guest}</p>
+                    <p className="mt-3 text-sm text-emerald-300">Entregue</p>
+                  </Card>
+                ))}
+            </div>
+          )}
+
+          {activeView === "cardapio" && (
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {menuItems.map((item) => (
+                <Card key={item.name} className="border-white/10 bg-zinc-950/80 p-3">
+                  <p className="text-sm font-semibold">{item.name}</p>
+                  <p className="text-xs text-zinc-500">{item.category}</p>
+                  <p className="mt-3 text-sm text-red-300">{formatCurrency(item.price)}</p>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {activeView === "mesas" && (
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              {Array.from({ length: 20 }, (_, index) => index + 1).map((table) => (
+                <Card key={table} className="border-white/10 bg-zinc-950/80 p-4">
+                  <p className="text-sm font-semibold">Mesa {table.toString().padStart(2, "0")}</p>
+                  <p className="mt-2 text-xs text-emerald-300">Disponivel / QR ativo</p>
+                </Card>
+              ))}
+            </div>
+          )}
         </section>
       </div>
     </main>
