@@ -59,6 +59,26 @@ export function CustomerApp({ tableId }: { tableId: string }) {
   }
 
   function sendOrder() {
+    const items = customerCart.map((line) => ({
+      productName: line.productName,
+      quantity: line.quantity,
+      unitCents: Math.round(line.unitPrice * 100)
+    }));
+
+    if (items.length) {
+      fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tableToken: tableId,
+          customerName,
+          items
+        })
+      }).catch(() => {
+        // The local optimistic state still keeps the customer flow moving.
+      });
+    }
+
     submitOrder({ customerName, tableLabel: `Mesa ${tableId}` });
     setStep("tracking");
   }

@@ -10,7 +10,7 @@
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "db:seed": "node prisma/seed.js"
+    "db:seed": "node prisma/seed.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",

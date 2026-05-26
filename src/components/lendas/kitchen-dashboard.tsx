@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { ChefHat, Clock3 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -17,8 +18,25 @@ const statusStyles: Record<OrderStatus, string> = {
 };
 
 export function KitchenDashboard() {
-  const { orders, advanceOrder } = useLendasStore();
+  const { orders: demoOrders, advanceOrder } = useLendasStore();
+  const [orders, setOrders] = useState(demoOrders);
   const columns: OrderStatus[] = ["Pendente", "Confirmado", "Em preparo", "Pronto", "Entregue"];
+
+  const loadOrders = useCallback(async () => {
+    const response = await fetch("/api/orders", { cache: "no-store" });
+    if (!response.ok) return;
+
+    const data = (await response.json()) as { orders?: typeof orders };
+    if (data.orders?.length) {
+      setOrders(data.orders);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.setTimeout(loadOrders, 0);
+    const interval = window.setInterval(loadOrders, 2500);
+    return () => window.clearInterval(interval);
+  }, [loadOrders]);
 
   return (
     <main className="noise min-h-screen bg-background p-4 text-foreground lg:p-6">
