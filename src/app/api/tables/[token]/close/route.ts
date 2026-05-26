@@ -9,6 +9,9 @@ type CloseTableDb = {
   tableSession: {
     update: (args: unknown) => Promise<unknown>;
   };
+  waiterCall: {
+    updateMany: (args: unknown) => Promise<unknown>;
+  };
 };
 
 export async function POST(
@@ -33,6 +36,10 @@ export async function POST(
     await db.tableSession.update({
       where: { id: table.currentSessionId },
       data: { status: "CLOSED", closedAt: new Date() }
+    });
+    await db.waiterCall.updateMany({
+      where: { sessionId: table.currentSessionId, status: { not: "RESOLVED" } },
+      data: { status: "RESOLVED", resolvedAt: new Date() }
     });
   }
 

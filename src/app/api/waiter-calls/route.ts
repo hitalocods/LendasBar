@@ -4,9 +4,10 @@ import { getDb } from "@/lib/db";
 export const dynamic = "force-dynamic";
 
 type WaiterCallPayload = {
-  restaurantId: string;
-  tableId: string;
-  sessionId: string;
+  restaurantId?: string;
+  tableId?: string;
+  tableToken?: string;
+  sessionId?: string;
   customerName: string;
   type: "WAITER" | "BILL";
 };
@@ -24,6 +25,16 @@ type WaiterCallsRouteDb = {
     create: (args: unknown) => Promise<unknown>;
   };
   tableSession: {
+    create: (args: unknown) => Promise<{ id: string }>;
+    update: (args: unknown) => Promise<unknown>;
+  };
+  table: {
+    findUnique: (args: unknown) => Promise<{
+      id: string;
+      restaurantId: string;
+      currentSessionId: string | null;
+      currentSession: { id: string } | null;
+    } | null>;
     update: (args: unknown) => Promise<unknown>;
   };
 };
@@ -72,12 +83,66 @@ export async function POST(request: Request) {
   }
 
   const db = getDb() as unknown as WaiterCallsRouteDb;
-  const waiterCall = await db.waiterCall.create({ data: payload });
+  let restaurantId = payload.restaurantId;
+  let tableId = payload.tableId;
+  let sessionId = payload.sessionId;
+
+  if (payload.tableToken) {
+    const table = await db.table.findUnique({
+      where: { qrToken: payload.tableToken },
+      include: { currentSession: true }
+    });
+
+    if (!table) {
+      return NextResponse.json({ error: "Table not found" }, { status: 404 });
+    }
+
+    restaurantId = table.restaurantId;
+    tableId = table.id;
+    sessionId =
+      table.currentSession?.id ??
+      (
+        await db.tableSession.create({
+          data: {
+            restaurantId: table.restaurantId,
+            tableId: table.id
+          }
+        })
+      ).id;
+
+    if (!table.currentSessionId) {
+      await db.table.update({
+        where: { id: table.id },
+        data: {
+          currentSessionId: sessionId,
+          status: payload.type === "BILL" ? "WAITING_BILL" : "OCCUPIED"
+        }
+      });
+    }
+  }
+
+  if (!restaurantId || !tableId || !sessionId) {
+    return NextResponse.json({ error: "Waiter call requires table/session context" }, { status: 400 });
+  }
+
+  const waiterCall = await db.waiterCall.create({
+    data: {
+      restaurantId,
+      tableId,
+      sessionId,
+      customerName: payload.customerName,
+      type: payload.type
+    }
+  });
 
   if (payload.type === "BILL") {
     await db.tableSession.update({
-      where: { id: payload.sessionId },
+      where: { id: sessionId },
       data: { status: "CLOSING" }
+    });
+    await db.table.update({
+      where: { id: tableId },
+      data: { status: "WAITING_BILL" }
     });
   }
 

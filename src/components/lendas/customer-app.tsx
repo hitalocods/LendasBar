@@ -137,6 +137,24 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
     setStep("menu");
   }
 
+  async function sendWaiterCall(type: "WAITER" | "BILL") {
+    await fetch("/api/waiter-calls", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tableToken: tableId,
+        customerName,
+        type
+      })
+    }).catch(() => {});
+
+    if (type === "WAITER") {
+      callWaiter(customerName);
+    } else {
+      requestBill(customerName);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-background text-foreground" style={toThemeStyle({ ...restaurant, background: "#050505" })}>
       <div className="mx-auto min-h-screen max-w-[430px] bg-[#07080a] shadow-[0_0_80px_rgba(0,0,0,0.7)]">
@@ -168,7 +186,7 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
               />
             )}
             {step === "tracking" && <TrackingScreen tableId={tableId} customerName={customerName} />}
-            {step === "actions" && <WaiterActions onWaiter={() => callWaiter(customerName)} onBill={() => requestBill(customerName)} />}
+            {step === "actions" && <WaiterActions onWaiter={() => sendWaiterCall("WAITER")} onBill={() => sendWaiterCall("BILL")} />}
           </div>
 
           {step !== "welcome" && (
@@ -503,25 +521,44 @@ function TrackingScreen({ tableId, customerName }: { tableId: string; customerNa
 }
 
 function WaiterActions({ onWaiter, onBill }: { onWaiter: () => void; onBill: () => void }) {
+  const [sent, setSent] = useState<"WAITER" | "BILL" | null>(null);
+
   return (
     <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
       <h1 className="mb-1 text-2xl font-semibold">Precisando de algo?</h1>
       <p className="mb-5 text-sm text-zinc-500">Sua solicitacao sera enviada para a equipe.</p>
       <div className="space-y-4">
-        <button onClick={onWaiter} className="red-sheen flex w-full items-center gap-4 rounded-lg border border-red-500/20 p-5 text-left">
+        <button
+          onClick={() => {
+            setSent("WAITER");
+            onWaiter();
+          }}
+          className="red-sheen flex w-full items-center gap-4 rounded-lg border border-red-500/20 p-5 text-left"
+        >
           <Bell className="h-9 w-9 text-red-300" />
           <div>
             <p className="font-semibold">Chamar garcom</p>
             <p className="text-sm text-zinc-400">Precisamos de atendimento na mesa.</p>
           </div>
         </button>
-        <button onClick={onBill} className="red-sheen flex w-full items-center gap-4 rounded-lg border border-red-500/20 p-5 text-left">
+        <button
+          onClick={() => {
+            setSent("BILL");
+            onBill();
+          }}
+          className="red-sheen flex w-full items-center gap-4 rounded-lg border border-red-500/20 p-5 text-left"
+        >
           <ReceiptText className="h-9 w-9 text-red-300" />
           <div>
             <p className="font-semibold">Pedir conta</p>
             <p className="text-sm text-zinc-400">Gostariamos de solicitar a conta.</p>
           </div>
         </button>
+        {sent && (
+          <Card className="border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-100">
+            {sent === "WAITER" ? "Chamado enviado para o garcom." : "Pedido de conta enviado para a equipe."}
+          </Card>
+        )}
       </div>
     </motion.section>
   );
