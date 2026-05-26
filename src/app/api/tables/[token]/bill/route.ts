@@ -10,6 +10,7 @@ type BillDb = {
       currentSession: null | {
         id: string;
         status: string;
+        users: Array<{ id: string; name: string; active: boolean }>;
         orders: Array<{
           id: string;
           customerName: string;
@@ -37,6 +38,7 @@ export async function GET(
     include: {
       currentSession: {
         include: {
+          users: { select: { id: true, name: true, active: true } },
           orders: {
             include: {
               items: { select: { productName: true, quantity: true, unitCents: true } }
@@ -72,6 +74,7 @@ export async function GET(
     table: table.number,
     sessionId: table.currentSession?.id ?? null,
     status: table.currentSession?.status ?? "CLOSED",
+    users: table.currentSession?.users ?? [],
     groups: grouped,
     total: grouped.reduce((sum, group) => sum + group.total, 0)
   });

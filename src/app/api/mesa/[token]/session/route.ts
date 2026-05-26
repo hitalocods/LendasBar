@@ -21,7 +21,12 @@ type SessionRouteDb = {
     create: (args: unknown) => Promise<TableSessionRecord>;
   };
   tableSessionUser: {
-    upsert: (args: unknown) => Promise<unknown>;
+    upsert: (args: unknown) => Promise<{
+      id: string;
+      name: string;
+      clientId: string;
+    }>;
+    findMany: (args: unknown) => Promise<Array<{ id: string; name: string; active: boolean }>>;
   };
 };
 
@@ -87,5 +92,11 @@ export async function POST(
     }
   });
 
-  return NextResponse.json({ table, session, user });
+  const users = await db.tableSessionUser.findMany({
+    where: { sessionId: session.id, active: true },
+    select: { id: true, name: true, active: true },
+    orderBy: { joinedAt: "asc" }
+  });
+
+  return NextResponse.json({ table, session, user, users });
 }

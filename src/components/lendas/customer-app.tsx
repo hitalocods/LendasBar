@@ -33,6 +33,12 @@ type TableBill = {
   groups: BillGroup[];
   total: number;
   status: string;
+  users?: Array<{ id: string; name: string; active: boolean }>;
+};
+type TableSessionUser = {
+  id: string;
+  name: string;
+  clientId?: string;
 };
 
 export function CustomerApp({ tableId, initialName }: { tableId: string; initialName: string }) {
@@ -41,6 +47,7 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
   const [category, setCategory] = useState(categories[0]);
   const [products, setProducts] = useState<Product[]>(menuItems);
   const [bill, setBill] = useState<TableBill | null>(null);
+  const [sessionUser, setSessionUser] = useState<TableSessionUser | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState(1);
   const {
@@ -58,6 +65,7 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
   const cartCount = customerCart.reduce((total, line) => total + line.quantity, 0);
   const tableBillTotal = cart.reduce((total, line) => total + line.quantity * line.unitPrice, 0);
   const liveCategories = useMemo(() => Array.from(new Set(products.map((item) => item.category))), [products]);
+  const connectedUsers = bill?.users?.length || tableSession.activeUsers.length || (sessionUser ? 1 : 0);
 
   const filteredProducts = useMemo(
     () => {
@@ -86,12 +94,50 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
     setBill(data);
   }, [tableId]);
 
+  const ensureClientId = useCallback(() => {
+    const key = `lendas:mesa:${tableId}:clientId`;
+    const existing = window.localStorage.getItem(key);
+    if (existing) return existing;
+
+    const generated = crypto.randomUUID();
+    window.localStorage.setItem(key, generated);
+    return generated;
+  }, [tableId]);
+
+  const registerSessionUser = useCallback(async (customer: string) => {
+    const clientId = ensureClientId();
+    const response = await fetch(`/api/mesa/${tableId}/session`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: customer, clientId })
+    });
+
+    if (!response.ok) return;
+
+    const data = (await response.json()) as {
+      user?: TableSessionUser;
+      users?: Array<{ id: string; name: string; active: boolean }>;
+    };
+    if (data.user) setSessionUser(data.user);
+    if (data.users) {
+      setBill((current) => ({ ...(current ?? { groups: [], total: 0, status: "ACTIVE" }), users: data.users }));
+    }
+  }, [ensureClientId, tableId]);
+
   useEffect(() => {
     if (step !== "cart" && step !== "tracking") return;
     window.setTimeout(loadBill, 0);
     const interval = window.setInterval(loadBill, 2500);
     return () => window.clearInterval(interval);
   }, [loadBill, step]);
+
+  useEffect(() => {
+    if (initialName) {
+      window.setTimeout(() => {
+        registerSessionUser(initialName).catch(() => {});
+      }, 0);
+    }
+  }, [initialName, registerSessionUser]);
 
   function addSelectedProduct() {
     if (!selectedProduct) return;
@@ -119,6 +165,7 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           tableToken: tableId,
+          sessionUserId: sessionUser?.id,
           customerName,
           items
         })
@@ -134,7 +181,15 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
   function enterTable() {
     document.cookie = `lendas_mesa_${tableId}_name=${encodeURIComponent(name.trim())}; path=/mesa/${tableId}; max-age=2592000; samesite=lax`;
     joinTable(name, tableId);
+    registerSessionUser(name).catch(() => {});
     setStep("menu");
+  }
+
+  function resetCustomer() {
+    document.cookie = `lendas_mesa_${tableId}_name=; path=/mesa/${tableId}; max-age=0; samesite=lax`;
+    setName("");
+    setSessionUser(null);
+    setStep("welcome");
   }
 
   async function sendWaiterCall(type: "WAITER" | "BILL") {
@@ -166,13 +221,14 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
               <MenuScreen
                 tableId={tableId}
                 customerName={customerName}
-                connectedUsers={tableSession.activeUsers.length}
+                connectedUsers={connectedUsers}
                 category={category}
                 categories={liveCategories.length ? liveCategories : categories}
                 setCategory={setCategory}
                 products={filteredProducts}
                 onSelectProduct={setSelectedProduct}
                 onCart={() => setStep("cart")}
+                onReset={resetCustomer}
                 cartCount={cartCount}
               />
             )}
@@ -252,6 +308,7 @@ function MenuScreen({
   products,
   onSelectProduct,
   onCart,
+  onReset,
   cartCount
 }: {
   tableId: string;
@@ -263,6 +320,7 @@ function MenuScreen({
   products: Product[];
   onSelectProduct: (product: Product) => void;
   onCart: () => void;
+  onReset: () => void;
   cartCount: number;
 }) {
   return (
@@ -271,6 +329,7 @@ function MenuScreen({
         <div>
           <p className="text-sm text-zinc-500">Mesa {tableId} · {connectedUsers} conectados</p>
           <h1 className="text-2xl font-semibold">Ola, {customerName}</h1>
+          <button onClick={onReset} className="mt-1 text-xs text-red-300">Trocar nome</button>
         </div>
         <div className="relative h-11 w-11 overflow-hidden rounded-full border border-red-500/40">
           <Image src="/lendas-logo.png" alt="LENDAS 2018" fill className="object-cover" />
