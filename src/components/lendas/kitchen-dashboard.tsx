@@ -18,7 +18,7 @@ const statusStyles: Record<OrderStatus, string> = {
 };
 
 export function KitchenDashboard() {
-  const { orders: demoOrders, advanceOrder } = useLendasStore();
+  const { orders: demoOrders, advanceOrder: advanceDemoOrder } = useLendasStore();
   const [orders, setOrders] = useState(demoOrders);
   const columns: OrderStatus[] = ["Pendente", "Confirmado", "Em preparo", "Pronto", "Entregue"];
 
@@ -37,6 +37,19 @@ export function KitchenDashboard() {
     const interval = window.setInterval(loadOrders, 2500);
     return () => window.clearInterval(interval);
   }, [loadOrders]);
+
+  async function advanceOrder(id: string) {
+    const response = await fetch(`/api/orders/${id}/advance`, {
+      method: "POST"
+    });
+
+    if (response.ok) {
+      await loadOrders();
+      return;
+    }
+
+    advanceDemoOrder(id);
+  }
 
   return (
     <main className="noise min-h-screen bg-background p-4 text-foreground lg:p-6">
