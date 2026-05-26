@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { Bell, CheckCircle2, CreditCard, Home, Minus, Plus, ReceiptText, Search, ShoppingBag, Utensils } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -15,6 +15,15 @@ import { toThemeStyle } from "@/lib/restaurant-theme";
 
 type Product = (typeof menuItems)[number];
 type Step = "welcome" | "menu" | "cart" | "tracking" | "actions";
+type CustomerOrder = {
+  id: string;
+  table: string;
+  guest: string;
+  items: string[];
+  total: number;
+  status: "Pendente" | "Confirmado" | "Em preparo" | "Pronto" | "Entregue";
+  minutes: number;
+};
 
 export function CustomerApp({ tableId, initialName }: { tableId: string; initialName: string }) {
   const [step, setStep] = useState<Step>(initialName ? "menu" : "welcome");
@@ -110,7 +119,7 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
               />
             )}
             {step === "cart" && <SharedCart customerName={customerName} cart={cart} tableBillTotal={tableBillTotal} onSend={sendOrder} />}
-            {step === "tracking" && <TrackingScreen tableId={tableId} />}
+            {step === "tracking" && <TrackingScreen tableId={tableId} customerName={customerName} />}
             {step === "actions" && <WaiterActions onWaiter={() => callWaiter(customerName)} onBill={() => requestBill(customerName)} />}
           </div>
 
@@ -354,18 +363,48 @@ function Line({ label, value }: { label: string; value: number }) {
   );
 }
 
-function TrackingScreen({ tableId }: { tableId: string }) {
+function TrackingScreen({ tableId, customerName }: { tableId: string; customerName: string }) {
+  const [order, setOrder] = useState<CustomerOrder | null>(null);
+
+  const loadOrder = useCallback(async () => {
+    const response = await fetch("/api/orders", { cache: "no-store" });
+    if (!response.ok) return;
+
+    const data = (await response.json()) as { orders?: CustomerOrder[] };
+    const latestOrder =
+      data.orders?.find((item) => item.table === `Mesa ${tableId}` && item.guest === customerName) ?? null;
+    setOrder(latestOrder);
+  }, [customerName, tableId]);
+
+  useEffect(() => {
+    window.setTimeout(loadOrder, 0);
+    const interval = window.setInterval(loadOrder, 2500);
+    return () => window.clearInterval(interval);
+  }, [loadOrder]);
+
+  const currentStatus = order?.status ?? "Pendente";
+  const statusRank = {
+    Pendente: 0,
+    Confirmado: 1,
+    "Em preparo": 2,
+    Pronto: 3,
+    Entregue: 4
+  } satisfies Record<CustomerOrder["status"], number>;
+
   const steps = [
-    ["Aguardando confirmacao", "Recebemos seu pedido", true],
-    ["Em preparo", "Seu pedido esta sendo preparado", false],
-    ["Pedido pronto", "Avisaremos quando sair da cozinha", false],
-    ["Finalizado", "Obrigado. Volte sempre!", false]
+    ["Aguardando confirmacao", "Recebemos seu pedido", statusRank[currentStatus] >= 0],
+    ["Confirmado", "A cozinha aceitou seu pedido", statusRank[currentStatus] >= 1],
+    ["Em preparo", "Seu pedido esta sendo preparado", statusRank[currentStatus] >= 2],
+    ["Pedido pronto", "Retirada/entrega em instantes", statusRank[currentStatus] >= 3],
+    ["Finalizado", "Obrigado. Volte sempre!", statusRank[currentStatus] >= 4]
   ] as const;
 
   return (
     <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
       <h1 className="mb-1 text-2xl font-semibold">Status do pedido</h1>
-      <p className="mb-5 text-sm text-zinc-500">Pedido #1258 · Mesa {tableId}</p>
+      <p className="mb-5 text-sm text-zinc-500">
+        {order ? `Pedido ${order.id.slice(-6).toUpperCase()} · Mesa ${tableId}` : `Mesa ${tableId} · aguardando pedido`}
+      </p>
       <div className="space-y-3">
         {steps.map(([title, copy, active]) => (
           <Card key={title} className="flex gap-3 border-white/10 bg-white/[0.045] p-4">
@@ -380,8 +419,8 @@ function TrackingScreen({ tableId }: { tableId: string }) {
         ))}
       </div>
       <Card className="mt-6 border-white/10 bg-black/45 p-5 text-center">
-        <p className="text-sm text-zinc-500">Tempo estimado</p>
-        <p className="mt-1 text-3xl font-semibold text-red-400">17 min</p>
+        <p className="text-sm text-zinc-500">{order ? "Status atual" : "Pedido"}</p>
+        <p className="mt-1 text-3xl font-semibold text-red-400">{order ? currentStatus : "Ainda nao enviado"}</p>
       </Card>
     </motion.section>
   );
