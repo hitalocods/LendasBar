@@ -24,12 +24,23 @@ type CustomerOrder = {
   status: "Pendente" | "Confirmado" | "Em preparo" | "Pronto" | "Entregue";
   minutes: number;
 };
+type BillGroup = {
+  customerName: string;
+  lines: Array<{ label: string; value: number }>;
+  total: number;
+};
+type TableBill = {
+  groups: BillGroup[];
+  total: number;
+  status: string;
+};
 
 export function CustomerApp({ tableId, initialName }: { tableId: string; initialName: string }) {
   const [step, setStep] = useState<Step>(initialName ? "menu" : "welcome");
   const [name, setName] = useState(initialName);
   const [category, setCategory] = useState(categories[0]);
   const [products, setProducts] = useState<Product[]>(menuItems);
+  const [bill, setBill] = useState<TableBill | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState(1);
   const {
@@ -67,6 +78,20 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
       })
       .catch(() => {});
   }, []);
+
+  const loadBill = useCallback(async () => {
+    const response = await fetch(`/api/tables/${tableId}/bill`, { cache: "no-store" });
+    if (!response.ok) return;
+    const data = (await response.json()) as TableBill;
+    setBill(data);
+  }, [tableId]);
+
+  useEffect(() => {
+    if (step !== "cart" && step !== "tracking") return;
+    window.setTimeout(loadBill, 0);
+    const interval = window.setInterval(loadBill, 2500);
+    return () => window.clearInterval(interval);
+  }, [loadBill, step]);
 
   function addSelectedProduct() {
     if (!selectedProduct) return;
@@ -133,7 +158,15 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
                 cartCount={cartCount}
               />
             )}
-            {step === "cart" && <SharedCart customerName={customerName} cart={cart} tableBillTotal={tableBillTotal} onSend={sendOrder} />}
+            {step === "cart" && (
+              <SharedCart
+                customerName={customerName}
+                cart={cart}
+                bill={bill}
+                tableBillTotal={bill ? bill.total / 100 : tableBillTotal}
+                onSend={sendOrder}
+              />
+            )}
             {step === "tracking" && <TrackingScreen tableId={tableId} customerName={customerName} />}
             {step === "actions" && <WaiterActions onWaiter={() => callWaiter(customerName)} onBill={() => requestBill(customerName)} />}
           </div>
@@ -335,11 +368,13 @@ function ProductModal({
 function SharedCart({
   customerName,
   cart,
+  bill,
   tableBillTotal,
   onSend
 }: {
   customerName: string;
   cart: Array<{ id: string; productName: string; customerName: string; quantity: number; unitPrice: number }>;
+  bill: TableBill | null;
   tableBillTotal: number;
   onSend: () => void;
 }) {
@@ -348,13 +383,29 @@ function SharedCart({
     return groups;
   }, {});
   const customerHasItems = cart.some((line) => line.customerName === customerName);
+  const realGroups = bill?.groups ?? [];
 
   return (
     <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
       <h1 className="mb-1 text-2xl font-semibold">Meu pedido</h1>
       <p className="mb-5 text-sm text-zinc-500">Mesa compartilhada · todos acompanham juntos</p>
       <div className="space-y-3">
-        {Object.entries(grouped).map(([guest, lines]) => (
+        {realGroups.map((group) => (
+          <Card key={group.customerName} className="border-white/10 bg-white/[0.045] p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="font-semibold">{group.customerName}</p>
+              {group.customerName === customerName && <Badge className="border-red-500/30 bg-red-500/10 text-red-100">voce</Badge>}
+            </div>
+            <div className="space-y-2">
+              {group.lines.map((line) => (
+                <Line key={`${group.customerName}-${line.label}`} label={line.label} value={line.value / 100} />
+              ))}
+            </div>
+          </Card>
+        ))}
+        {Object.entries(grouped)
+          .filter(([guest]) => !realGroups.some((group) => group.customerName === guest))
+          .map(([guest, lines]) => (
           <Card key={guest} className="border-white/10 bg-white/[0.045] p-4">
             <div className="mb-3 flex items-center justify-between">
               <p className="font-semibold">{guest}</p>
