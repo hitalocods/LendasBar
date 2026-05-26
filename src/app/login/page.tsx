@@ -11,7 +11,7 @@ async function login(formData: FormData) {
 
   const password = String(formData.get("password") ?? "");
   const next = String(formData.get("next") ?? "/admin");
-  const safeNext = next === "/kitchen" ? "/kitchen" : "/admin";
+  const safeNext = next === "/kitchen" || next === "/waiter" ? next : "/admin";
   const expected = process.env.STAFF_PASSWORD || "lendas2018";
 
   if (password !== expected) {

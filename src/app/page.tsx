@@ -23,6 +23,9 @@ export default function Home() {
             <Link href="/kitchen">Cozinha</Link>
           </Button>
           <Button asChild variant="secondary">
+            <Link href="/waiter">Garcom</Link>
+          </Button>
+          <Button asChild variant="secondary">
             <Link href="/admin">Admin</Link>
           </Button>
         </div>

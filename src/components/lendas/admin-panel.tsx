@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { QRCodeSVG } from "qrcode.react";
-import { BarChart3, Boxes, Grid2X2, ReceiptText, Settings, ShoppingBag, Users, WalletCards } from "lucide-react";
+import { BarChart3, Boxes, Camera, Grid2X2, Pencil, ReceiptText, Search, Settings, ShoppingBag, Trash2, Users, WalletCards } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -188,6 +188,7 @@ function TablesAndQr() {
 function MenuManager() {
   const [products, setProducts] = useState<Product[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -241,41 +242,92 @@ function MenuManager() {
     await loadProducts();
   }
 
+  const visibleProducts = products.filter((product) =>
+    `${product.name} ${product.category}`.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
-    <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
-      <Card className="border-white/10 bg-black/45 p-4">
-        <h2 className="mb-4 text-lg font-semibold">{editingId ? "Editar produto" : "Adicionar produto"}</h2>
+    <div className="grid gap-5 xl:grid-cols-[390px_1fr]">
+      <Card className="border-white/10 bg-black/45 p-0">
+        <div className="border-b border-white/10 p-4">
+          <p className="text-xs uppercase tracking-[0.18em] text-red-300">Produto</p>
+          <h2 className="mt-1 text-lg font-semibold">{editingId ? "Editar produto" : "Adicionar produto"}</h2>
+        </div>
+        <div className="p-4">
+          <div className="mb-4 overflow-hidden rounded-lg border border-white/10 bg-zinc-950">
+            <div className="relative grid aspect-[16/10] place-items-center bg-gradient-to-br from-red-950/40 to-zinc-950">
+              {form.imageUrl ? (
+                <Image src={form.imageUrl} alt="Preview do produto" fill className="object-cover" />
+              ) : (
+                <div className="text-center text-zinc-500">
+                  <Camera className="mx-auto mb-2 h-8 w-8 text-red-300" />
+                  <p className="text-sm">Preview da foto</p>
+                </div>
+              )}
+            </div>
+          </div>
         <form className="space-y-3" onSubmit={submitProduct}>
-          <Input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Nome do produto" />
-          <Input value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="Descricao" />
-          <Input value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} placeholder="Categoria" />
-          <Input value={form.price} onChange={(event) => setForm({ ...form, price: event.target.value })} placeholder="Preco, ex: 8,90" />
-          <Input value={form.imageUrl} onChange={(event) => setForm({ ...form, imageUrl: event.target.value })} placeholder="URL da foto do produto" />
-          <Button className="w-full" type="submit">{editingId ? "Salvar alteracoes" : "Salvar produto"}</Button>
+          <Field label="Nome">
+            <Input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Coxinha com Catupiry" />
+          </Field>
+          <Field label="Descricao">
+            <Input value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="Massa crocante e recheio cremoso" />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Categoria">
+              <Input value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} placeholder="Coxinhas" />
+            </Field>
+            <Field label="Preco">
+              <Input value={form.price} onChange={(event) => setForm({ ...form, price: event.target.value })} placeholder="8,90" />
+            </Field>
+          </div>
+          <Field label="Foto">
+            <Input value={form.imageUrl} onChange={(event) => setForm({ ...form, imageUrl: event.target.value })} placeholder="https://..." />
+          </Field>
+          <Button className="w-full" type="submit">{editingId ? "Salvar alteracoes" : "Cadastrar produto"}</Button>
           {editingId && (
             <Button className="w-full" type="button" variant="secondary" onClick={() => setEditingId(null)}>
               Cancelar edicao
             </Button>
           )}
         </form>
-        <p className="mt-3 text-xs text-zinc-500">Por enquanto use uma URL de imagem. O upload direto via UploadThing/Cloudinary fica preparado no proximo passo.</p>
+        <p className="mt-3 text-xs text-zinc-500">Use uma URL de imagem por enquanto. O upload direto entra na etapa de integração Cloudinary/UploadThing.</p>
+        </div>
       </Card>
 
-      <Card className="border-white/10 bg-black/45 p-4">
-        <h2 className="mb-4 text-lg font-semibold">Produtos cadastrados</h2>
-        <div className="grid gap-3 md:grid-cols-2">
-          {products.map((product) => (
-            <div key={product.id} className="flex gap-3 rounded-lg border border-white/10 bg-white/[0.035] p-3">
-              <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-md bg-zinc-900">
+      <Card className="border-white/10 bg-black/45 p-0">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 p-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.18em] text-red-300">Cardapio</p>
+            <h2 className="mt-1 text-lg font-semibold">Produtos cadastrados</h2>
+          </div>
+          <div className="flex w-full max-w-xs items-center gap-2 rounded-lg border border-white/10 bg-white/[0.045] px-3">
+            <Search className="h-4 w-4 text-zinc-500" />
+            <Input className="border-0 bg-transparent px-0 focus:ring-0" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar produto..." />
+          </div>
+        </div>
+        <div className="grid gap-3 p-4 lg:grid-cols-2">
+          {visibleProducts.map((product) => (
+            <div key={product.id} className="group flex gap-3 rounded-lg border border-white/10 bg-white/[0.035] p-3 transition hover:border-red-500/40">
+              <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-md bg-zinc-900">
                 {product.imageUrl ? <Image src={product.imageUrl} alt={product.name} fill className="object-cover" /> : null}
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold">{product.name}</p>
-                <p className="text-xs text-zinc-500">{product.category}</p>
-                <p className="mt-2 text-sm text-red-300">{formatCurrency(product.price)}</p>
-                <div className="mt-3 flex gap-2">
-                  <Button size="sm" variant="secondary" onClick={() => editProduct(product)}>Editar</Button>
-                  <Button size="sm" variant="outline" onClick={() => removeProduct(product.id)}>Remover</Button>
+                <p className="mt-1 line-clamp-2 text-xs text-zinc-500">{product.desc}</p>
+                <div className="mt-3 flex items-center justify-between gap-2">
+                  <div>
+                    <Badge>{product.category}</Badge>
+                    <p className="mt-2 text-sm font-semibold text-red-300">{formatCurrency(product.price)}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="icon" variant="secondary" onClick={() => editProduct(product)} aria-label="Editar produto">
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button size="icon" variant="outline" onClick={() => removeProduct(product.id)} aria-label="Remover produto">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -283,6 +335,15 @@ function MenuManager() {
         </div>
       </Card>
     </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block space-y-1.5">
+      <span className="text-xs font-medium text-zinc-400">{label}</span>
+      {children}
+    </label>
   );
 }
 
