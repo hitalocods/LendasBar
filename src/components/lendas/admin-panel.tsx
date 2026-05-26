@@ -26,8 +26,14 @@ type TableRow = {
   qrToken: string;
   status: string;
   sessionId: string | null;
+  waiter: { id: string; name: string } | null;
   guests: string[];
   total: number;
+};
+type Waiter = {
+  id: string;
+  name: string;
+  tables: string;
 };
 
 export function AdminPanel() {
@@ -109,16 +115,27 @@ export function AdminPanel() {
 
 function TablesAndQr() {
   const [tables, setTables] = useState<TableRow[]>([]);
+  const [waiters, setWaiters] = useState<Waiter[]>([]);
   const [selectedTable, setSelectedTable] = useState("1");
 
   const loadTables = useCallback(async () => {
-    const response = await fetch("/api/tables", { cache: "no-store" });
-    if (!response.ok) return;
-    const data = (await response.json()) as { tables?: TableRow[] };
-    const rows = data.tables ?? [];
-    setTables(rows);
-    if (rows.length && !rows.some((table) => table.qrToken === selectedTable)) {
-      setSelectedTable(rows[0].qrToken);
+    const [tablesResponse, waitersResponse] = await Promise.all([
+      fetch("/api/tables", { cache: "no-store" }),
+      fetch("/api/waiters", { cache: "no-store" })
+    ]);
+
+    if (tablesResponse.ok) {
+      const data = (await tablesResponse.json()) as { tables?: TableRow[] };
+      const rows = data.tables ?? [];
+      setTables(rows);
+      if (rows.length && !rows.some((table) => table.qrToken === selectedTable)) {
+        setSelectedTable(rows[0].qrToken);
+      }
+    }
+
+    if (waitersResponse.ok) {
+      const data = (await waitersResponse.json()) as { waiters?: Waiter[] };
+      setWaiters(data.waiters ?? []);
     }
   }, [selectedTable]);
 
@@ -133,6 +150,15 @@ function TablesAndQr() {
     await loadTables();
   }
 
+  async function assignWaiter(token: string, waiterId: string) {
+    await fetch(`/api/tables/${token}/assignment`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ waiterId: waiterId || null })
+    });
+    await loadTables();
+  }
+
   const displayTables = tables.length
     ? tables
     : Array.from({ length: 20 }, (_, index) => ({
@@ -141,6 +167,7 @@ function TablesAndQr() {
         qrToken: String(index + 1),
         status: "AVAILABLE",
         sessionId: null,
+        waiter: null,
         guests: [],
         total: 0
       }));
@@ -154,13 +181,26 @@ function TablesAndQr() {
         </div>
         <div className="space-y-2">
           {displayTables.map((table) => (
-            <div key={table.id} className="grid gap-3 rounded-md border border-white/10 bg-white/[0.035] px-3 py-3 text-sm md:grid-cols-[1fr_auto_auto] md:items-center">
+            <div key={table.id} className="grid gap-3 rounded-md border border-white/10 bg-white/[0.035] px-3 py-3 text-sm md:grid-cols-[1fr_180px_auto_auto] md:items-center">
               <button className="text-left" onClick={() => setSelectedTable(table.qrToken)}>
                 <span className="font-semibold">Mesa {table.number.toString().padStart(2, "0")}</span>
                 <p className="text-xs text-zinc-500">
                   {table.guests.length ? `${table.guests.join(", ")} · ${formatCurrency(table.total / 100)}` : "Sem sessao ativa"}
                 </p>
+                <p className="text-xs text-zinc-600">{table.waiter ? `Garcom: ${table.waiter.name}` : "Sem garcom atribuido"}</p>
               </button>
+              <select
+                value={table.waiter?.id ?? ""}
+                onChange={(event) => assignWaiter(table.qrToken, event.target.value)}
+                className="h-9 rounded-md border border-white/10 bg-zinc-950 px-2 text-xs text-zinc-100 outline-none focus:border-red-500"
+              >
+                <option value="">Sem garcom</option>
+                {waiters.map((waiter) => (
+                  <option key={waiter.id} value={waiter.id}>
+                    {waiter.name}
+                  </option>
+                ))}
+              </select>
               <span className={cn("text-xs", table.sessionId ? "text-amber-300" : "text-emerald-300")}>
                 {table.sessionId ? "Aberta" : "Disponivel"}
               </span>

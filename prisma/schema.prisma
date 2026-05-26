@@ -8,51 +8,56 @@ datasource db {
 }
 
 model Restaurant {
-  id              String         @id @default(cuid())
-  name            String
-  slug            String         @unique
-  logoUrl         String?
-  accent          String         @default("#d71920")
-  background      String         @default("#050505")
-  settings        Json           @default("{}")
-  users           User[]
-  tables          Table[]
-  sessions        TableSession[]
-  categories      Category[]
-  products        Product[]
-  orders          Order[]
-  waiterCalls     WaiterCall[]
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  id          String         @id @default(cuid())
+  name        String
+  slug        String         @unique
+  logoUrl     String?
+  accent      String         @default("#d71920")
+  background  String         @default("#050505")
+  settings    Json           @default("{}")
+  users       User[]
+  tables      Table[]
+  sessions    TableSession[]
+  categories  Category[]
+  products    Product[]
+  orders      Order[]
+  waiterCalls WaiterCall[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 }
 
 model User {
-  id           String     @id @default(cuid())
-  restaurantId String
-  name         String
-  email        String?
-  role         UserRole   @default(STAFF)
-  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  createdAt    DateTime   @default(now())
+  id             String       @id @default(cuid())
+  restaurantId   String
+  name           String
+  email          String?
+  role           UserRole     @default(STAFF)
+  restaurant     Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  assignedTables Table[]      @relation("WaiterTables")
+  waiterCalls    WaiterCall[] @relation("WaiterCalls")
+  createdAt      DateTime     @default(now())
 
   @@unique([restaurantId, email])
 }
 
 model Table {
-  id               String          @id @default(cuid())
+  id               String         @id @default(cuid())
   restaurantId     String
   number           Int
-  qrToken          String          @unique
-  status           TableStatus     @default(AVAILABLE)
+  qrToken          String         @unique
+  status           TableStatus    @default(AVAILABLE)
   currentSessionId String?
-  restaurant       Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  sessions         TableSession[]  @relation("TableSessions")
-  currentSession   TableSession?   @relation("CurrentTableSession", fields: [currentSessionId], references: [id], onDelete: SetNull)
+  assignedWaiterId String?
+  restaurant       Restaurant     @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  assignedWaiter   User?          @relation("WaiterTables", fields: [assignedWaiterId], references: [id], onDelete: SetNull)
+  sessions         TableSession[] @relation("TableSessions")
+  currentSession   TableSession?  @relation("CurrentTableSession", fields: [currentSessionId], references: [id], onDelete: SetNull)
   orders           Order[]
   waiterCalls      WaiterCall[]
 
   @@unique([restaurantId, number])
   @@index([restaurantId, qrToken])
+  @@index([assignedWaiterId])
 }
 
 model TableSession {
@@ -133,30 +138,34 @@ model Order {
 }
 
 model OrderItem {
-  id          String  @id @default(cuid())
+  id          String   @id @default(cuid())
   orderId     String
   productId   String?
   productName String
   quantity    Int
   unitCents   Int
   notes       String?
-  order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product     Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
 }
 
 model WaiterCall {
-  id           String           @id @default(cuid())
-  restaurantId String
-  tableId      String
-  sessionId    String
-  customerName String
-  type         WaiterCallType
-  status       WaiterCallStatus @default(OPEN)
-  restaurant   Restaurant       @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  table        Table            @relation(fields: [tableId], references: [id], onDelete: Cascade)
-  session      TableSession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  createdAt    DateTime         @default(now())
-  resolvedAt   DateTime?
+  id               String           @id @default(cuid())
+  restaurantId     String
+  tableId          String
+  sessionId        String
+  customerName     String
+  type             WaiterCallType
+  status           WaiterCallStatus @default(OPEN)
+  assignedWaiterId String?
+  restaurant       Restaurant       @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  table            Table            @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  session          TableSession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  assignedWaiter   User?            @relation("WaiterCalls", fields: [assignedWaiterId], references: [id], onDelete: SetNull)
+  createdAt        DateTime         @default(now())
+  resolvedAt       DateTime?
+
+  @@index([assignedWaiterId, status])
 }
 
 enum UserRole {

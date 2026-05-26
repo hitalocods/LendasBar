@@ -14,6 +14,7 @@ type TablesDb = {
       qrToken: string;
       status: string;
       currentSessionId: string | null;
+      assignedWaiter: null | { id: string; name: string };
       currentSession: null | {
         id: string;
         status: string;
@@ -56,7 +57,8 @@ export async function GET() {
             }
           }
         }
-      }
+      },
+      assignedWaiter: { select: { id: true, name: true } }
     }
   });
 
@@ -67,6 +69,9 @@ export async function GET() {
       qrToken: table.qrToken,
       status: table.status,
       sessionId: table.currentSessionId,
+      waiter: table.assignedWaiter
+        ? { id: table.assignedWaiter.id, name: table.assignedWaiter.name }
+        : null,
       guests: table.currentSession?.users.map((user) => user.name) ?? [],
       total:
         table.currentSession?.orders.reduce(

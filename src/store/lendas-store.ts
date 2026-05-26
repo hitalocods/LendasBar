@@ -55,6 +55,7 @@ type LendasState = {
   orders: Order[];
   joinTable: (name: string, tableToken: string) => void;
   addToCart: (input: { productName: string; customerName: string; quantity: number; unitPrice: number }) => void;
+  removeFromCart: (id: string) => void;
   submitOrder: (input: SubmitOrderInput) => void;
   advanceOrder: (id: string) => void;
   callWaiter: (customerName: string) => void;
@@ -162,6 +163,10 @@ export const useLendasStore = create<LendasState>()(
               unitPrice
             }
           ]
+        })),
+      removeFromCart: (id) =>
+        set((state) => ({
+          cart: state.cart.filter((line) => line.id !== id)
         })),
       submitOrder: ({ customerName, tableLabel }) =>
         set((state) => {

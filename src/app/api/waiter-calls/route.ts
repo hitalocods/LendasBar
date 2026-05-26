@@ -20,7 +20,8 @@ type WaiterCallsRouteDb = {
       type: string;
       status: string;
       createdAt: Date;
-      table: { number: number };
+      table: { number: number; assignedWaiter: null | { id: string; name: string } };
+      assignedWaiter: null | { id: string; name: string };
     }>>;
     create: (args: unknown) => Promise<unknown>;
   };
@@ -33,23 +34,37 @@ type WaiterCallsRouteDb = {
       id: string;
       restaurantId: string;
       currentSessionId: string | null;
+      assignedWaiterId: string | null;
       currentSession: { id: string } | null;
     } | null>;
     update: (args: unknown) => Promise<unknown>;
   };
 };
 
-export async function GET() {
+export async function GET(request: Request) {
   if (!process.env.DATABASE_URL) {
     return NextResponse.json({ calls: [] });
   }
 
+  const { searchParams } = new URL(request.url);
+  const waiterId = searchParams.get("waiterId");
   const db = getDb() as unknown as WaiterCallsRouteDb;
   const calls = await db.waiterCall.findMany({
-    where: { status: { not: "RESOLVED" } },
+    where: {
+      status: { not: "RESOLVED" },
+      ...(waiterId ? { assignedWaiterId: waiterId } : {})
+    },
     orderBy: { createdAt: "desc" },
     take: 50,
-    include: { table: { select: { number: true } } }
+    include: {
+      assignedWaiter: { select: { id: true, name: true } },
+      table: {
+        select: {
+          number: true,
+          assignedWaiter: { select: { id: true, name: true } }
+        }
+      }
+    }
   });
 
   return NextResponse.json({
@@ -59,6 +74,7 @@ export async function GET() {
       customerName: call.customerName,
       type: call.type,
       status: call.status,
+      waiter: call.assignedWaiter ?? call.table.assignedWaiter,
       minutes: Math.max(0, Math.round((Date.now() - call.createdAt.getTime()) / 60000))
     }))
   });
@@ -86,6 +102,7 @@ export async function POST(request: Request) {
   let restaurantId = payload.restaurantId;
   let tableId = payload.tableId;
   let sessionId = payload.sessionId;
+  let assignedWaiterId: string | null = null;
 
   if (payload.tableToken) {
     const table = await db.table.findUnique({
@@ -99,6 +116,7 @@ export async function POST(request: Request) {
 
     restaurantId = table.restaurantId;
     tableId = table.id;
+    assignedWaiterId = table.assignedWaiterId;
     sessionId =
       table.currentSession?.id ??
       (
@@ -131,7 +149,8 @@ export async function POST(request: Request) {
       tableId,
       sessionId,
       customerName: payload.customerName,
-      type: payload.type
+      type: payload.type,
+      assignedWaiterId
     }
   });
 

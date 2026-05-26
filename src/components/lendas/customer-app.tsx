@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Bell, CheckCircle2, CreditCard, Home, Minus, Plus, ReceiptText, Search, ShoppingBag, Utensils } from "lucide-react";
+import { Bell, CheckCircle2, CreditCard, Home, Minus, Plus, ReceiptText, Search, ShoppingBag, Trash2, Utensils } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -56,6 +56,7 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
     tableSession,
     joinTable,
     addToCart,
+    removeFromCart,
     submitOrder,
     callWaiter,
     requestBill
@@ -63,7 +64,7 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
   const customerName = name.trim() || "Voce";
   const customerCart = cart.filter((line) => line.customerName === customerName);
   const cartCount = customerCart.reduce((total, line) => total + line.quantity, 0);
-  const tableBillTotal = cart.reduce((total, line) => total + line.quantity * line.unitPrice, 0);
+  const pendingCartTotal = cart.reduce((total, line) => total + line.quantity * line.unitPrice, 0);
   const liveCategories = useMemo(() => Array.from(new Set(products.map((item) => item.category))), [products]);
   const connectedUsers = bill?.users?.length || tableSession.activeUsers.length || (sessionUser ? 1 : 0);
 
@@ -237,7 +238,8 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
                 customerName={customerName}
                 cart={cart}
                 bill={bill}
-                tableBillTotal={bill ? bill.total / 100 : tableBillTotal}
+                tableBillTotal={(bill?.total ?? 0) / 100 + pendingCartTotal}
+                onRemove={removeFromCart}
                 onSend={sendOrder}
               />
             )}
@@ -447,12 +449,14 @@ function SharedCart({
   cart,
   bill,
   tableBillTotal,
+  onRemove,
   onSend
 }: {
   customerName: string;
   cart: Array<{ id: string; productName: string; customerName: string; quantity: number; unitPrice: number }>;
   bill: TableBill | null;
   tableBillTotal: number;
+  onRemove: (id: string) => void;
   onSend: () => void;
 }) {
   const grouped = cart.reduce<Record<string, typeof cart>>((groups, line) => {
@@ -470,7 +474,10 @@ function SharedCart({
         {realGroups.map((group) => (
           <Card key={group.customerName} className="border-white/10 bg-white/[0.045] p-4">
             <div className="mb-3 flex items-center justify-between">
-              <p className="font-semibold">{group.customerName}</p>
+              <div>
+                <p className="font-semibold">{group.customerName}</p>
+                <p className="text-xs text-zinc-500">Subtotal {formatCurrency(group.total / 100)}</p>
+              </div>
               {group.customerName === customerName && <Badge className="border-red-500/30 bg-red-500/10 text-red-100">voce</Badge>}
             </div>
             <div className="space-y-2">
@@ -480,17 +487,26 @@ function SharedCart({
             </div>
           </Card>
         ))}
-        {Object.entries(grouped)
-          .filter(([guest]) => !realGroups.some((group) => group.customerName === guest))
-          .map(([guest, lines]) => (
-          <Card key={guest} className="border-white/10 bg-white/[0.045] p-4">
+        {Object.entries(grouped).map(([guest, lines]) => (
+          <Card key={`pending-${guest}`} className="border-white/10 bg-white/[0.045] p-4">
             <div className="mb-3 flex items-center justify-between">
-              <p className="font-semibold">{guest}</p>
+              <div>
+                <p className="font-semibold">{guest}</p>
+                <p className="text-xs text-red-200/80">No carrinho</p>
+                <p className="text-xs text-zinc-500">
+                  Subtotal {formatCurrency(lines.reduce((total, line) => total + line.quantity * line.unitPrice, 0))}
+                </p>
+              </div>
               {guest === customerName && <Badge className="border-red-500/30 bg-red-500/10 text-red-100">voce</Badge>}
             </div>
             <div className="space-y-2">
               {lines.map((line) => (
-                <Line key={line.id} label={`${line.quantity}x ${line.productName}`} value={line.quantity * line.unitPrice} />
+                <Line
+                  key={line.id}
+                  label={`${line.quantity}x ${line.productName}`}
+                  value={line.quantity * line.unitPrice}
+                  onRemove={guest === customerName ? () => onRemove(line.id) : undefined}
+                />
               ))}
             </div>
           </Card>
@@ -507,11 +523,16 @@ function SharedCart({
   );
 }
 
-function Line({ label, value }: { label: string; value: number }) {
+function Line({ label, value, onRemove }: { label: string; value: number; onRemove?: () => void }) {
   return (
-    <div className="flex items-center justify-between text-sm">
-      <span className="text-zinc-300">{label}</span>
-      <span>{formatCurrency(value)}</span>
+    <div className="flex items-center justify-between gap-3 text-sm">
+      <span className="min-w-0 flex-1 text-zinc-300">{label}</span>
+      <span className="shrink-0">{formatCurrency(value)}</span>
+      {onRemove && (
+        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-zinc-400 hover:text-red-200" onClick={onRemove} aria-label={`Remover ${label}`}>
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      )}
     </div>
   );
 }

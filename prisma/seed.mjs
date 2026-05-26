@@ -20,6 +20,35 @@ async function main() {
     }
   });
 
+  const waiters = [
+    { name: "Joao", email: "joao@lendas.local", from: 1, to: 6 },
+    { name: "Maria", email: "maria@lendas.local", from: 7, to: 12 },
+    { name: "Pedro", email: "pedro@lendas.local", from: 13, to: 20 }
+  ];
+
+  const waitersByRange = [];
+  for (const waiter of waiters) {
+    const user = await prisma.user.upsert({
+      where: {
+        restaurantId_email: {
+          restaurantId: restaurant.id,
+          email: waiter.email
+        }
+      },
+      update: {
+        name: waiter.name,
+        role: "WAITER"
+      },
+      create: {
+        restaurantId: restaurant.id,
+        name: waiter.name,
+        email: waiter.email,
+        role: "WAITER"
+      }
+    });
+    waitersByRange.push({ ...waiter, id: user.id });
+  }
+
   const categoryNames = ["Coxinhas", "Hamburgueres", "Bebidas", "Combos", "Porcoes"];
   const categories = {};
 
@@ -79,16 +108,20 @@ async function main() {
   }
 
   for (let number = 1; number <= 20; number += 1) {
+    const assignedWaiter = waitersByRange.find((waiter) => number >= waiter.from && number <= waiter.to);
+
     await prisma.table.upsert({
       where: { qrToken: String(number) },
       update: {
         restaurantId: restaurant.id,
-        number
+        number,
+        assignedWaiterId: assignedWaiter?.id
       },
       create: {
         restaurantId: restaurant.id,
         number,
-        qrToken: String(number)
+        qrToken: String(number),
+        assignedWaiterId: assignedWaiter?.id
       }
     });
   }
