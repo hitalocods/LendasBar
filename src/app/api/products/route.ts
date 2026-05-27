@@ -62,7 +62,7 @@ export async function GET() {
   const restaurant = await getRestaurant(db);
   const products = await db.product.findMany({
     where: { restaurantId: restaurant.id, active: true },
-    orderBy: { createdAt: "desc" },
+    orderBy: { createdAt: "asc" },
     include: { category: { select: { name: true } } }
   });
 
