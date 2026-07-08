@@ -56,34 +56,38 @@ export async function GET() {
     return NextResponse.json({ waiters: demoWaiters });
   }
 
-  const db = getDb() as unknown as WaitersDb;
-  const restaurant = await db.restaurant.findFirst({
-    where: { slug: "lendas-2018" },
-    select: { id: true }
-  });
+  try {
+    const db = getDb() as unknown as WaitersDb;
+    const restaurant = await db.restaurant.findFirst({
+      where: { slug: "lendas-2018" },
+      select: { id: true }
+    });
 
-  if (!restaurant) return NextResponse.json({ waiters: [] });
+    if (!restaurant) return NextResponse.json({ waiters: [] });
 
-  const waiters = await db.user.findMany({
-    where: {
-      restaurantId: restaurant.id,
-      role: "WAITER"
-    },
-    orderBy: { name: "asc" },
-    include: {
-      assignedTables: {
-        select: { number: true },
-        orderBy: { number: "asc" }
+    const waiters = await db.user.findMany({
+      where: {
+        restaurantId: restaurant.id,
+        role: "WAITER"
+      },
+      orderBy: { name: "asc" },
+      include: {
+        assignedTables: {
+          select: { number: true },
+          orderBy: { number: "asc" }
+        }
       }
-    }
-  });
+    });
 
-  return NextResponse.json({
-    waiters: waiters.map((waiter) => ({
-      id: waiter.id,
-      name: waiter.name,
-      email: waiter.email,
-      tables: summarizeTables(waiter.assignedTables.map((table) => table.number))
-    }))
-  });
+    return NextResponse.json({
+      waiters: waiters.map((waiter) => ({
+        id: waiter.id,
+        name: waiter.name,
+        email: waiter.email,
+        tables: summarizeTables(waiter.assignedTables.map((table) => table.number))
+      }))
+    });
+  } catch {
+    return NextResponse.json({ waiters: demoWaiters, degraded: true });
+  }
 }

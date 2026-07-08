@@ -24,6 +24,20 @@ export function KitchenDashboard() {
   const [activeView, setActiveView] = useState<"pedidos" | "historico" | "cardapio" | "mesas">("pedidos");
   const columns: OrderStatus[] = ["Pendente", "Confirmado", "Em preparo", "Pronto", "Entregue"];
 
+  const isSameLocalDay = useCallback((isoDate?: string) => {
+    if (!isoDate) return false;
+
+    const date = new Date(isoDate);
+    if (Number.isNaN(date.getTime())) return false;
+
+    const now = new Date();
+    return (
+      date.getFullYear() === now.getFullYear() &&
+      date.getMonth() === now.getMonth() &&
+      date.getDate() === now.getDate()
+    );
+  }, []);
+
   const loadOrders = useCallback(async () => {
     const response = await fetch("/api/orders", { cache: "no-store" });
     if (!response.ok) return;
@@ -146,7 +160,7 @@ export function KitchenDashboard() {
           {activeView === "historico" && (
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {orders
-                .filter((order) => order.status === "Entregue")
+                .filter((order) => order.status === "Entregue" && isSameLocalDay((order as { createdAt?: string }).createdAt))
                 .map((order) => (
                   <Card key={order.id} className="border-white/10 bg-zinc-950/80 p-3">
                     <p className="text-sm font-semibold">{order.table}</p>

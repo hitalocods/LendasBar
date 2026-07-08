@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { formatCurrency, cn } from "@/lib/utils";
 import { useLendasStore } from "@/store/lendas-store";
 
-type AdminView = "dashboard" | "cardapio" | "categorias" | "mesas" | "pedidos" | "musica" | "configuracoes";
+type AdminView = "dashboard" | "cardapio" | "categorias" | "mesas" | "pedidos" | "musica" | "financeiro" | "configuracoes";
 type Product = {
   id: string;
   name: string;
@@ -34,6 +34,22 @@ type Waiter = {
   id: string;
   name: string;
   tables: string;
+};
+type FinanceSummary = {
+  from: string;
+  to: string;
+  revenueCents: number;
+  expensesCents: number;
+  netCents: number;
+  deliveredOrders: number;
+};
+type Expense = {
+  id: string;
+  description: string;
+  category: string | null;
+  amountCents: number;
+  occurredAt: string;
+  createdAt: string;
 };
 
 export function AdminPanel() {
@@ -62,6 +78,7 @@ export function AdminPanel() {
               [Grid2X2, "Categorias", "categorias"],
               [Users, "Mesas", "mesas"],
               [ReceiptText, "Pedidos", "pedidos"],
+              [WalletCards, "Financeiro", "financeiro"],
               [Music2, "Musica", "musica"],
               [Settings, "Configuracoes", "configuracoes"]
             ].map(([Icon, label, view]) => (
@@ -106,6 +123,7 @@ export function AdminPanel() {
           {activeView === "cardapio" && <MenuManager />}
           {activeView === "mesas" && <TablesAndQr />}
           {activeView === "musica" && <MusicRequestsManager />}
+          {activeView === "financeiro" && <FinanceManager />}
           {activeView === "categorias" && <Placeholder title="Categorias" copy="As categorias sao criadas automaticamente ao cadastrar produtos." />}
           {activeView === "pedidos" && <Placeholder title="Pedidos" copy="O historico completo sera ligado aos filtros por data e mesa." />}
           {activeView === "configuracoes" && <Placeholder title="Configuracoes" copy="Aqui ficarao tema, logo, horarios e dados do restaurante." />}
@@ -427,6 +445,192 @@ function MusicRequestsManager() {
           ))}
         </div>
       </Card>
+    </div>
+  );
+}
+
+function FinanceManager() {
+  const [period, setPeriod] = useState<"day" | "month">("day");
+  const [anchorDate, setAnchorDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [summary, setSummary] = useState<FinanceSummary | null>(null);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    description: "",
+    category: "",
+    amount: "",
+    occurredAt: new Date().toISOString().slice(0, 10)
+  });
+
+  const range = useMemo(() => {
+    const [year, month, day] = anchorDate.split("-").map(Number);
+    const date = new Date(year, (month || 1) - 1, day || 1);
+
+    const start =
+      period === "month"
+        ? new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0)
+        : new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
+    const end =
+      period === "month"
+        ? new Date(date.getFullYear(), date.getMonth() + 1, 1, 0, 0, 0, 0)
+        : new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1, 0, 0, 0, 0);
+
+    return {
+      from: start.toISOString(),
+      to: end.toISOString()
+    };
+  }, [anchorDate, period]);
+
+  const loadFinance = useCallback(async () => {
+    const params = new URLSearchParams(range);
+    const [summaryResponse, expensesResponse] = await Promise.all([
+      fetch(`/api/finance/summary?${params.toString()}`, { cache: "no-store" }),
+      fetch(`/api/expenses?${params.toString()}`, { cache: "no-store" })
+    ]);
+
+    if (summaryResponse.ok) {
+      const data = (await summaryResponse.json()) as FinanceSummary;
+      setSummary(data);
+    }
+
+    if (expensesResponse.ok) {
+      const data = (await expensesResponse.json()) as { expenses?: Expense[] };
+      setExpenses(data.expenses ?? []);
+    }
+
+    setLoading(false);
+  }, [range]);
+
+  useEffect(() => {
+    window.setTimeout(() => {
+      setLoading(true);
+      loadFinance();
+    }, 0);
+  }, [loadFinance]);
+
+  async function submitExpense(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const amount = Number(form.amount.replace(",", "."));
+    if (!form.description.trim() || !Number.isFinite(amount) || amount <= 0) return;
+
+    setSaving(true);
+    const response = await fetch("/api/expenses", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        description: form.description.trim(),
+        category: form.category.trim() || null,
+        amountCents: Math.round(amount * 100),
+        occurredAt: `${form.occurredAt}T12:00:00.000Z`
+      })
+    });
+
+    setSaving(false);
+    if (!response.ok) return;
+
+    setForm((current) => ({
+      ...current,
+      description: "",
+      amount: ""
+    }));
+    await loadFinance();
+  }
+
+  return (
+    <div className="space-y-5">
+      <Card className="border-white/10 bg-black/45 p-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex gap-2">
+            <Button variant={period === "day" ? "default" : "secondary"} onClick={() => setPeriod("day")}>
+              Dia
+            </Button>
+            <Button variant={period === "month" ? "default" : "secondary"} onClick={() => setPeriod("month")}>
+              Mes
+            </Button>
+          </div>
+          <div>
+            <p className="mb-1 text-xs text-zinc-500">Data de referencia</p>
+            <Input type="date" value={anchorDate} onChange={(event) => setAnchorDate(event.target.value)} />
+          </div>
+        </div>
+      </Card>
+
+      <div className="grid gap-3 md:grid-cols-4">
+        <Metric icon={WalletCards} label="Faturamento" value={formatCurrency((summary?.revenueCents ?? 0) / 100)} />
+        <Metric icon={ReceiptText} label="Gastos" value={formatCurrency((summary?.expensesCents ?? 0) / 100)} />
+        <Metric icon={BarChart3} label="Liquido" value={formatCurrency((summary?.netCents ?? 0) / 100)} />
+        <Metric icon={ShoppingBag} label="Pedidos entregues" value={String(summary?.deliveredOrders ?? 0)} />
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[390px_1fr]">
+        <Card className="border-white/10 bg-black/45 p-4">
+          <h2 className="text-lg font-semibold">Lancar gasto</h2>
+          <p className="mt-1 text-sm text-zinc-500">Registre despesas operacionais para acompanhar o lucro real.</p>
+          <form className="mt-4 space-y-3" onSubmit={submitExpense}>
+            <Field label="Descricao">
+              <Input
+                value={form.description}
+                onChange={(event) => setForm({ ...form, description: event.target.value })}
+                placeholder="Ex.: compra de insumos"
+              />
+            </Field>
+            <Field label="Categoria">
+              <Input
+                value={form.category}
+                onChange={(event) => setForm({ ...form, category: event.target.value })}
+                placeholder="Ex.: estoque, energia, marketing"
+              />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Valor (R$)">
+                <Input
+                  value={form.amount}
+                  onChange={(event) => setForm({ ...form, amount: event.target.value })}
+                  placeholder="120,50"
+                />
+              </Field>
+              <Field label="Data">
+                <Input
+                  type="date"
+                  value={form.occurredAt}
+                  onChange={(event) => setForm({ ...form, occurredAt: event.target.value })}
+                />
+              </Field>
+            </div>
+            <Button className="w-full" type="submit" disabled={saving}>
+              {saving ? "Salvando..." : "Salvar gasto"}
+            </Button>
+          </form>
+        </Card>
+
+        <Card className="border-white/10 bg-black/45 p-4">
+          <h2 className="text-lg font-semibold">Gastos do periodo</h2>
+          <p className="mt-1 text-sm text-zinc-500">{period === "day" ? "Visao diaria" : "Visao mensal"} do caixa.</p>
+
+          {loading && <p className="mt-4 text-sm text-zinc-500">Carregando dados financeiros...</p>}
+
+          {!loading && expenses.length === 0 && (
+            <p className="mt-4 text-sm text-zinc-500">Nenhum gasto registrado neste periodo.</p>
+          )}
+
+          <div className="mt-4 space-y-2">
+            {expenses.map((expense) => (
+              <div key={expense.id} className="rounded-md border border-white/10 bg-white/[0.035] px-3 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold">{expense.description}</p>
+                    <p className="text-xs text-zinc-500">
+                      {expense.category || "Sem categoria"} · {new Date(expense.occurredAt).toLocaleDateString("pt-BR")}
+                    </p>
+                  </div>
+                  <p className="text-sm font-semibold text-red-300">-{formatCurrency(expense.amountCents / 100)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }

@@ -18,6 +18,7 @@ model Restaurant {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
   categories  Category[]
+  expenses    Expense[]
   orders      Order[]
   musicRequests MusicRequest[]
   products    Product[]
@@ -151,6 +152,19 @@ model OrderItem {
   notes       String?
   order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product     Product? @relation(fields: [productId], references: [id])
+}
+
+model Expense {
+  id           String     @id @default(cuid())
+  restaurantId String
+  description  String
+  category     String?
+  amountCents  Int
+  occurredAt   DateTime   @default(now())
+  createdAt    DateTime   @default(now())
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId, occurredAt])
 }
 
 model MusicRequest {

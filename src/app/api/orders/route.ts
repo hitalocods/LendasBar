@@ -110,6 +110,7 @@ export async function GET() {
       items: order.items.map((item) => `${item.quantity}x ${item.productName}`),
       total: order.items.reduce((total, item) => total + item.quantity * item.unitCents, 0) / 100,
       status: statusLabel[order.status] ?? "Pendente",
+      createdAt: order.createdAt.toISOString(),
       minutes: Math.max(0, Math.round((Date.now() - order.createdAt.getTime()) / 60000))
     }))
   }, {
@@ -131,7 +132,7 @@ type OrdersRouteDbWrite = {
   table: OrdersRouteDb["table"];
   tableSession: OrdersRouteDb["tableSession"];
   $transaction: <T>(fn: (tx: OrdersRouteDbWrite) => Promise<T>) => Promise<T>;
-  $queryRaw: (query: TemplateStringsArray, ...values: unknown[]) => Promise<unknown>;
+  $queryRaw: <T = unknown>(query: TemplateStringsArray, ...values: unknown[]) => Promise<T>;
 };
 
 export async function POST(request: Request) {
@@ -201,7 +202,17 @@ export async function POST(request: Request) {
   const duplicateCutoff = new Date(Date.now() - DUPLICATE_WINDOW_MS);
 
   const result = await db.$transaction(async (tx) => {
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+    const lockRows = await tx.$queryRaw<Array<{ locked: boolean }>>`
+      SELECT pg_try_advisory_xact_lock(hashtext(${lockKey})) AS locked
+    `;
+
+    if (!lockRows?.[0]?.locked) {
+      return {
+        duplicated: true,
+        busy: true,
+        orderId: null as string | null
+      };
+    }
 
     const recentOrder = await tx.order.findFirst({
       where: {
@@ -228,6 +239,7 @@ export async function POST(request: Request) {
     if (recentOrder && orderFingerprint(recentOrder.items) === incomingFingerprint) {
       return {
         duplicated: true,
+        busy: false,
         orderId: recentOrder.id
       };
     }
@@ -254,6 +266,7 @@ export async function POST(request: Request) {
 
     return {
       duplicated: false,
+      busy: false,
       order
     };
   });
@@ -261,8 +274,9 @@ export async function POST(request: Request) {
   if (result.duplicated) {
     return NextResponse.json(
       {
-        error: "Pedido duplicado detectado.",
+        error: result.busy ? "Seu pedido ainda esta sendo processado." : "Pedido duplicado detectado.",
         duplicate: true,
+        busy: result.busy,
         orderId: result.orderId
       },
       { status: 409 }

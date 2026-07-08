@@ -59,18 +59,25 @@ export async function GET() {
     return NextResponse.json({ products: [] });
   }
 
-  const db = getDb() as unknown as ProductsDb;
-  const restaurant = await getRestaurant(db);
-  const products = await db.product.findMany({
-    where: { restaurantId: restaurant.id, active: true },
-    orderBy: { createdAt: "asc" },
-    include: { category: { select: { name: true } } }
-  });
+  try {
+    const db = getDb() as unknown as ProductsDb;
+    const restaurant = await getRestaurant(db);
+    const products = await db.product.findMany({
+      where: { restaurantId: restaurant.id, active: true },
+      orderBy: { createdAt: "asc" },
+      include: { category: { select: { name: true } } }
+    });
 
-  return NextResponse.json(
-    { products: products.map(toClientProduct) },
-    { headers: { "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate" } }
-  );
+    return NextResponse.json(
+      { products: products.map(toClientProduct) },
+      { headers: { "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate" } }
+    );
+  } catch {
+    return NextResponse.json(
+      { products: [], degraded: true },
+      { headers: { "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate" } }
+    );
+  }
 }
 
 export async function POST(request: Request) {
