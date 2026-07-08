@@ -18,10 +18,12 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     fetch(event.request).catch(async () => {
       if (event.request.mode === "navigate") {
-        return caches.match(OFFLINE_URL);
+        const offlinePage = await caches.match(OFFLINE_URL);
+        return offlinePage || Response.error();
       }
 
-      return caches.match(event.request);
+      const cached = await caches.match(event.request);
+      return cached || Response.error();
     })
   );
 });
