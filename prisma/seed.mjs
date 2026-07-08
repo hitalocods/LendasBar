@@ -1,6 +1,17 @@
 import { PrismaClient } from "@prisma/client";
+import { pbkdf2Sync, randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+
+const PASSWORD_ITERATIONS = 120000;
+const PASSWORD_DIGEST = "sha256";
+const PASSWORD_KEY_LENGTH = 64;
+
+function hashPassword(password) {
+  const salt = randomBytes(16).toString("hex");
+  const hash = pbkdf2Sync(password, salt, PASSWORD_ITERATIONS, PASSWORD_KEY_LENGTH, PASSWORD_DIGEST).toString("hex");
+  return `pbkdf2$${PASSWORD_ITERATIONS}$${salt}$${hash}`;
+}
 
 function loadEnvLocal() {
   try {
@@ -45,6 +56,18 @@ async function main() {
     { name: "Pedro", email: "pedro@lendas.local", from: 13, to: 20 }
   ];
 
+  const staff = [
+    { name: "Dono", email: "owner@lendas.local", role: "OWNER", password: "owner@2018" },
+    { name: "Gerente", email: "manager@lendas.local", role: "MANAGER", password: "manager@2018" },
+    { name: "Cozinha", email: "cozinha@lendas.local", role: "KITCHEN", password: "kitchen@2018" },
+    ...waiters.map((waiter) => ({
+      name: waiter.name,
+      email: waiter.email,
+      role: "WAITER",
+      password: `${waiter.name.toLowerCase()}@2018`
+    }))
+  ];
+
   const waitersByRange = [];
   for (const waiter of waiters) {
     const user = await prisma.user.upsert({
@@ -66,6 +89,29 @@ async function main() {
       }
     });
     waitersByRange.push({ ...waiter, id: user.id });
+  }
+
+  for (const account of staff) {
+    await prisma.user.upsert({
+      where: {
+        restaurantId_email: {
+          restaurantId: restaurant.id,
+          email: account.email
+        }
+      },
+      update: {
+        name: account.name,
+        role: account.role,
+        passwordHash: hashPassword(account.password)
+      },
+      create: {
+        restaurantId: restaurant.id,
+        name: account.name,
+        email: account.email,
+        role: account.role,
+        passwordHash: hashPassword(account.password)
+      }
+    });
   }
 
   const categoryNames = [

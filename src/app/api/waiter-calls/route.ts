@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { hasStaffAccess } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -42,6 +43,10 @@ type WaiterCallsRouteDb = {
 };
 
 export async function GET(request: Request) {
+  if (!(await hasStaffAccess("WAITER"))) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  }
+
   if (!process.env.DATABASE_URL) {
     return NextResponse.json({ calls: [] });
   }

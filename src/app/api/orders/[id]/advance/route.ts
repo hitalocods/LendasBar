@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { hasStaffAccess } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 
 const nextStatus: Record<string, string> = {
@@ -20,6 +21,10 @@ export async function POST(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (!(await hasStaffAccess("KITCHEN"))) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  }
+
   const { id } = await params;
 
   if (!process.env.DATABASE_URL) {

@@ -3,7 +3,7 @@ import { WaiterPanel } from "@/components/lendas/waiter-panel";
 import { hasStaffAccess } from "@/lib/auth";
 
 export default async function WaiterPage() {
-  if (!(await hasStaffAccess())) {
+  if (!(await hasStaffAccess("WAITER"))) {
     redirect("/login?next=/waiter");
   }
 

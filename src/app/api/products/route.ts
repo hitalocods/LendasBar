@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { hasStaffAccess } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -73,6 +74,10 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  if (!(await hasStaffAccess("MANAGER"))) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  }
+
   const body = (await request.json()) as {
     name?: string;
     description?: string;

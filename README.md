@@ -26,6 +26,10 @@ Create `.env` from `.env.example`:
 ```bash
 DATABASE_URL="postgresql://USER:PASSWORD@HOST.neon.tech/lendas2018?sslmode=require"
 UPLOADTHING_TOKEN=""
+AUTH_SECRET="replace-with-a-long-random-secret"
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+NEXT_PUBLIC_BRAND_HANDLE="@atlassoftware_"
+NEXT_PUBLIC_MARKETING_COPY="Peça direto no QR e viva a experiência da casa."
 ```
 
 Then run:

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { hasStaffAccess } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -47,6 +48,10 @@ function summarizeTables(numbers: number[]) {
 }
 
 export async function GET() {
+  if (!(await hasStaffAccess("WAITER"))) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  }
+
   if (!process.env.DATABASE_URL) {
     return NextResponse.json({ waiters: demoWaiters });
   }

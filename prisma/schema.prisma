@@ -15,15 +15,16 @@ model Restaurant {
   accent      String         @default("#d71920")
   background  String         @default("#050505")
   settings    Json           @default("{}")
-  users       User[]
-  tables      Table[]
-  sessions    TableSession[]
-  categories  Category[]
-  products    Product[]
-  orders      Order[]
-  waiterCalls WaiterCall[]
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
+  categories  Category[]
+  orders      Order[]
+  musicRequests MusicRequest[]
+  products    Product[]
+  tables      Table[]
+  sessions    TableSession[]
+  users       User[]
+  waiterCalls WaiterCall[]
 }
 
 model User {
@@ -31,11 +32,12 @@ model User {
   restaurantId   String
   name           String
   email          String?
+  passwordHash   String?
   role           UserRole     @default(STAFF)
-  restaurant     Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  assignedTables Table[]      @relation("WaiterTables")
-  waiterCalls    WaiterCall[] @relation("WaiterCalls")
   createdAt      DateTime     @default(now())
+  assignedTables Table[]      @relation("WaiterTables")
+  restaurant     Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  waiterCalls    WaiterCall[] @relation("WaiterCalls")
 
   @@unique([restaurantId, email])
 }
@@ -48,11 +50,12 @@ model Table {
   status           TableStatus    @default(AVAILABLE)
   currentSessionId String?
   assignedWaiterId String?
-  restaurant       Restaurant     @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  assignedWaiter   User?          @relation("WaiterTables", fields: [assignedWaiterId], references: [id], onDelete: SetNull)
-  sessions         TableSession[] @relation("TableSessions")
-  currentSession   TableSession?  @relation("CurrentTableSession", fields: [currentSessionId], references: [id], onDelete: SetNull)
   orders           Order[]
+  assignedWaiter   User?          @relation("WaiterTables", fields: [assignedWaiterId], references: [id])
+  currentSession   TableSession?  @relation("CurrentTableSession", fields: [currentSessionId], references: [id])
+  restaurant       Restaurant     @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  sessions         TableSession[] @relation("TableSessions")
+  musicRequests    MusicRequest[]
   waiterCalls      WaiterCall[]
 
   @@unique([restaurantId, number])
@@ -67,11 +70,12 @@ model TableSession {
   status       TableSessionStatus @default(ACTIVE)
   openedAt     DateTime           @default(now())
   closedAt     DateTime?
+  orders       Order[]
+  activeOn     Table[]            @relation("CurrentTableSession")
   restaurant   Restaurant         @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   table        Table              @relation("TableSessions", fields: [tableId], references: [id], onDelete: Cascade)
-  activeOn     Table[]            @relation("CurrentTableSession")
   users        TableSessionUser[]
-  orders       Order[]
+  musicRequests MusicRequest[]
   waiterCalls  WaiterCall[]
 
   @@index([restaurantId, tableId, status])
@@ -83,9 +87,9 @@ model TableSessionUser {
   name      String
   clientId  String
   active    Boolean      @default(true)
-  session   TableSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  orders    Order[]
   joinedAt  DateTime     @default(now())
+  orders    Order[]
+  session   TableSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@unique([sessionId, clientId])
 }
@@ -111,11 +115,11 @@ model Product {
   imageUrl     String?
   priceCents   Int
   active       Boolean     @default(true)
-  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  category     Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  items        OrderItem[]
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
+  items        OrderItem[]
+  category     Category?   @relation(fields: [categoryId], references: [id])
+  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 }
 
 model Order {
@@ -126,13 +130,13 @@ model Order {
   sessionUserId String?
   customerName  String
   status        OrderStatus       @default(PENDING)
-  restaurant    Restaurant        @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  table         Table             @relation(fields: [tableId], references: [id], onDelete: Cascade)
-  session       TableSession      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  sessionUser   TableSessionUser? @relation(fields: [sessionUserId], references: [id], onDelete: SetNull)
-  items         OrderItem[]
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
+  restaurant    Restaurant        @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  session       TableSession      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionUser   TableSessionUser? @relation(fields: [sessionUserId], references: [id])
+  table         Table             @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  items         OrderItem[]
 
   @@index([restaurantId, sessionId, status])
 }
@@ -146,7 +150,28 @@ model OrderItem {
   unitCents   Int
   notes       String?
   order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product     Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  product     Product? @relation(fields: [productId], references: [id])
+}
+
+model MusicRequest {
+  id           String             @id @default(cuid())
+  restaurantId String
+  tableId      String
+  sessionId    String
+  customerName String
+  title        String
+  artist       String?
+  notes        String?
+  status       String             @default("OPEN")
+  createdAt    DateTime           @default(now())
+  playedAt     DateTime?
+  restaurant   Restaurant         @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  table        Table              @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  session      TableSession       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId, status, createdAt])
+  @@index([tableId, status])
+  @@index([sessionId, status])
 }
 
 model WaiterCall {
@@ -157,13 +182,13 @@ model WaiterCall {
   customerName     String
   type             WaiterCallType
   status           WaiterCallStatus @default(OPEN)
-  assignedWaiterId String?
-  restaurant       Restaurant       @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  table            Table            @relation(fields: [tableId], references: [id], onDelete: Cascade)
-  session          TableSession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  assignedWaiter   User?            @relation("WaiterCalls", fields: [assignedWaiterId], references: [id], onDelete: SetNull)
   createdAt        DateTime         @default(now())
   resolvedAt       DateTime?
+  assignedWaiterId String?
+  assignedWaiter   User?            @relation("WaiterCalls", fields: [assignedWaiterId], references: [id])
+  restaurant       Restaurant       @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  session          TableSession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  table            Table            @relation(fields: [tableId], references: [id], onDelete: Cascade)
 
   @@index([assignedWaiterId, status])
 }

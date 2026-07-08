@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Bell, CheckCircle2, CreditCard, Home, Minus, Plus, ReceiptText, Search, ShoppingBag, Trash2, Utensils } from "lucide-react";
+import { Bell, CheckCircle2, CreditCard, Home, Minus, Music2, Plus, ReceiptText, Search, ShoppingBag, Trash2, Utensils } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ import { useLendasStore } from "@/store/lendas-store";
 import { toThemeStyle } from "@/lib/restaurant-theme";
 
 type Product = (typeof menuItems)[number];
-type Step = "welcome" | "menu" | "cart" | "tracking" | "actions";
+type Step = "welcome" | "menu" | "cart" | "tracking" | "actions" | "music";
 type CustomerOrder = {
   id: string;
   table: string;
@@ -50,6 +50,12 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
   const [sessionUser, setSessionUser] = useState<TableSessionUser | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState(1);
+  const [isSendingOrder, setIsSendingOrder] = useState(false);
+  const [orderSendFeedback, setOrderSendFeedback] = useState<string | null>(null);
+  const [musicTitle, setMusicTitle] = useState("");
+  const [musicArtist, setMusicArtist] = useState("");
+  const [musicNotes, setMusicNotes] = useState("");
+  const [musicSent, setMusicSent] = useState(false);
   const {
     cart,
     restaurant,
@@ -153,15 +159,22 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
     setQuantity(1);
   }
 
-  function sendOrder() {
+  async function sendOrder() {
+    if (isSendingOrder) return;
+
     const items = customerCart.map((line) => ({
       productName: line.productName,
       quantity: line.quantity,
       unitCents: Math.round(line.unitPrice * 100)
     }));
 
-    if (items.length) {
-      fetch("/api/orders", {
+    if (!items.length) return;
+
+    setIsSendingOrder(true);
+    setOrderSendFeedback(null);
+
+    try {
+      const response = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -170,13 +183,27 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
           customerName,
           items
         })
-      }).catch(() => {
-        // The local optimistic state still keeps the customer flow moving.
       });
-    }
 
-    submitOrder({ customerName, tableLabel: `Mesa ${tableId}` });
-    setStep("tracking");
+      if (response.ok) {
+        submitOrder({ customerName, tableLabel: `Mesa ${tableId}` });
+        setStep("tracking");
+        return;
+      }
+
+      if (response.status === 409) {
+        setOrderSendFeedback("Seu pedido ja foi enviado. Atualizando status...");
+        submitOrder({ customerName, tableLabel: `Mesa ${tableId}` });
+        setStep("tracking");
+        return;
+      }
+
+      setOrderSendFeedback("Nao foi possivel enviar agora. Tente novamente em alguns segundos.");
+    } catch {
+      setOrderSendFeedback("Falha de conexao. Verifique a internet e tente novamente.");
+    } finally {
+      setIsSendingOrder(false);
+    }
   }
 
   function enterTable() {
@@ -241,9 +268,25 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
                 tableBillTotal={(bill?.total ?? 0) / 100 + pendingCartTotal}
                 onRemove={removeFromCart}
                 onSend={sendOrder}
+                isSending={isSendingOrder}
+                sendFeedback={orderSendFeedback}
               />
             )}
             {step === "tracking" && <TrackingScreen tableId={tableId} customerName={customerName} />}
+            {step === "music" && (
+              <MusicScreen
+                customerName={customerName}
+                tableId={tableId}
+                musicTitle={musicTitle}
+                setMusicTitle={setMusicTitle}
+                musicArtist={musicArtist}
+                setMusicArtist={setMusicArtist}
+                musicNotes={musicNotes}
+                setMusicNotes={setMusicNotes}
+                musicSent={musicSent}
+                setMusicSent={setMusicSent}
+              />
+            )}
             {step === "actions" && <WaiterActions onWaiter={() => sendWaiterCall("WAITER")} onBill={() => sendWaiterCall("BILL")} />}
           </div>
 
@@ -450,14 +493,18 @@ function SharedCart({
   bill,
   tableBillTotal,
   onRemove,
-  onSend
+  onSend,
+  isSending,
+  sendFeedback
 }: {
   customerName: string;
   cart: Array<{ id: string; productName: string; customerName: string; quantity: number; unitPrice: number }>;
   bill: TableBill | null;
   tableBillTotal: number;
   onRemove: (id: string) => void;
-  onSend: () => void;
+  onSend: () => void | Promise<void>;
+  isSending: boolean;
+  sendFeedback: string | null;
 }) {
   const grouped = cart.reduce<Record<string, typeof cart>>((groups, line) => {
     groups[line.customerName] = [...(groups[line.customerName] || []), line];
@@ -517,7 +564,12 @@ function SharedCart({
           <span>Total da mesa</span>
           <span className="text-xl font-semibold text-red-400">{formatCurrency(tableBillTotal)}</span>
         </div>
-        <Button className="mt-4 w-full" disabled={!customerHasItems} onClick={onSend}>Enviar meu pedido</Button>
+        <Button className="mt-4 w-full" disabled={!customerHasItems || isSending} onClick={onSend}>
+          {isSending ? "Enviando..." : "Enviar meu pedido"}
+        </Button>
+        {sendFeedback && (
+          <p className="mt-3 text-center text-xs text-amber-200">{sendFeedback}</p>
+        )}
       </div>
     </motion.section>
   );
@@ -644,16 +696,108 @@ function WaiterActions({ onWaiter, onBill }: { onWaiter: () => void; onBill: () 
   );
 }
 
+function MusicScreen({
+  customerName,
+  tableId,
+  musicTitle,
+  setMusicTitle,
+  musicArtist,
+  setMusicArtist,
+  musicNotes,
+  setMusicNotes,
+  musicSent,
+  setMusicSent
+}: {
+  customerName: string;
+  tableId: string;
+  musicTitle: string;
+  setMusicTitle: (value: string) => void;
+  musicArtist: string;
+  setMusicArtist: (value: string) => void;
+  musicNotes: string;
+  setMusicNotes: (value: string) => void;
+  musicSent: boolean;
+  setMusicSent: (value: boolean) => void;
+}) {
+  const [loading, setLoading] = useState(false);
+
+  async function sendMusicRequest() {
+    const title = musicTitle.trim();
+    if (!title) return;
+
+    setLoading(true);
+    try {
+      const response = await fetch("/api/music-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tableToken: tableId,
+          customerName,
+          title,
+          artist: musicArtist,
+          notes: musicNotes
+        })
+      });
+
+      if (!response.ok) return;
+
+      setMusicTitle("");
+      setMusicArtist("");
+      setMusicNotes("");
+      setMusicSent(true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
+      <h1 className="mb-1 text-2xl font-semibold">Pedido de musica</h1>
+      <p className="mb-5 text-sm text-zinc-500">Mande sua sugestao para a equipe avaliar e tocar quando puder.</p>
+      <div className="space-y-3">
+        <Card className="border-white/10 bg-white/[0.045] p-4">
+          <p className="text-xs uppercase tracking-[0.18em] text-red-300">Mesa {tableId}</p>
+          <div className="mt-4 space-y-3">
+            <Input value={musicTitle} onChange={(event) => setMusicTitle(event.target.value)} placeholder="Nome da musica" />
+            <Input value={musicArtist} onChange={(event) => setMusicArtist(event.target.value)} placeholder="Artista ou banda" />
+            <Input value={musicNotes} onChange={(event) => setMusicNotes(event.target.value)} placeholder="Recado opcional para o dono" />
+            <Button className="w-full" onClick={sendMusicRequest} disabled={loading || !musicTitle.trim()}>
+              {loading ? "Enviando..." : "Pedir musica"}
+            </Button>
+          </div>
+        </Card>
+
+        <Card className="border-white/10 bg-black/45 p-4">
+          <div className="flex items-center gap-3">
+            <Music2 className="h-5 w-5 text-red-300" />
+            <div>
+              <p className="font-semibold">Como funciona</p>
+              <p className="text-sm text-zinc-500">O pedido vai para o painel interno e a equipe marca quando tocar.</p>
+            </div>
+          </div>
+        </Card>
+
+        {musicSent && (
+          <Card className="border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-100">
+            Pedido enviado para a equipe.
+          </Card>
+        )}
+      </div>
+    </motion.section>
+  );
+}
+
 function CustomerNav({ active, setStep, cartCount }: { active: Step; setStep: (step: Step) => void; cartCount: number }) {
   const items = [
     ["menu", Home, "Cardapio"],
     ["cart", ShoppingBag, "Carrinho"],
     ["tracking", CheckCircle2, "Pedido"],
+    ["music", Music2, "Musica"],
     ["actions", CreditCard, "Conta"]
   ] as const;
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto grid max-w-[430px] grid-cols-4 border-t border-white/10 bg-black/85 px-3 py-3 backdrop-blur">
+    <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto grid max-w-[430px] grid-cols-5 border-t border-white/10 bg-black/85 px-3 py-3 backdrop-blur">
       {items.map(([step, Icon, label]) => (
         <button key={step} onClick={() => setStep(step)} className={cn("relative flex flex-col items-center gap-1 text-[11px] text-zinc-500", active === step && "text-red-500")}>
           <Icon className="h-4 w-4" />

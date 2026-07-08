@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import { QRCodeSVG } from "qrcode.react";
-import { BarChart3, Boxes, Camera, Grid2X2, Pencil, ReceiptText, Search, Settings, ShoppingBag, Trash2, Users, WalletCards } from "lucide-react";
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { BarChart3, Boxes, Camera, Grid2X2, Music2, Pencil, ReceiptText, Search, Settings, ShoppingBag, Trash2, Users, WalletCards } from "lucide-react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { formatCurrency, cn } from "@/lib/utils";
 import { useLendasStore } from "@/store/lendas-store";
 
-type AdminView = "dashboard" | "cardapio" | "categorias" | "mesas" | "pedidos" | "configuracoes";
+type AdminView = "dashboard" | "cardapio" | "categorias" | "mesas" | "pedidos" | "musica" | "configuracoes";
 type Product = {
   id: string;
   name: string;
@@ -48,7 +48,7 @@ export function AdminPanel() {
         <aside className="rounded-lg border border-white/10 bg-black/55 p-4">
           <div className="mb-8 flex items-center gap-3">
             <div className="relative h-12 w-12 overflow-hidden rounded-full border border-red-500/40">
-              <Image src="/lendas-logo.png" alt="LENDAS 2018" fill className="object-cover" />
+              <Image src="/lendas-logo.png" alt="LENDAS 2018" fill sizes="48px" className="object-cover" />
             </div>
             <div>
               <p className="text-sm font-semibold">LENDAS 2018</p>
@@ -62,6 +62,7 @@ export function AdminPanel() {
               [Grid2X2, "Categorias", "categorias"],
               [Users, "Mesas", "mesas"],
               [ReceiptText, "Pedidos", "pedidos"],
+              [Music2, "Musica", "musica"],
               [Settings, "Configuracoes", "configuracoes"]
             ].map(([Icon, label, view]) => (
               <button
@@ -104,6 +105,7 @@ export function AdminPanel() {
 
           {activeView === "cardapio" && <MenuManager />}
           {activeView === "mesas" && <TablesAndQr />}
+          {activeView === "musica" && <MusicRequestsManager />}
           {activeView === "categorias" && <Placeholder title="Categorias" copy="As categorias sao criadas automaticamente ao cadastrar produtos." />}
           {activeView === "pedidos" && <Placeholder title="Pedidos" copy="O historico completo sera ligado aos filtros por data e mesa." />}
           {activeView === "configuracoes" && <Placeholder title="Configuracoes" copy="Aqui ficarao tema, logo, horarios e dados do restaurante." />}
@@ -117,6 +119,15 @@ function TablesAndQr() {
   const [tables, setTables] = useState<TableRow[]>([]);
   const [waiters, setWaiters] = useState<Waiter[]>([]);
   const [selectedTable, setSelectedTable] = useState("1");
+  const qrCardRef = useRef<HTMLDivElement>(null);
+  const [appBaseUrl] = useState(() => (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, ""));
+  const [brandHandle] = useState(() => process.env.NEXT_PUBLIC_BRAND_HANDLE || "@atlassoftware_");
+  const [marketingCopy] = useState(() => process.env.NEXT_PUBLIC_MARKETING_COPY || "Peça direto no QR e viva a experiência LENDAS.");
+
+  const selectedTableUrl = useMemo(() => {
+    if (!appBaseUrl) return `https://lendasbar.vercel.app/mesa/${selectedTable}`;
+    return `${appBaseUrl}/mesa/${selectedTable}`;
+  }, [appBaseUrl, selectedTable]);
 
   const loadTables = useCallback(async () => {
     const [tablesResponse, waitersResponse] = await Promise.all([
@@ -157,6 +168,95 @@ function TablesAndQr() {
       body: JSON.stringify({ waiterId: waiterId || null })
     });
     await loadTables();
+  }
+
+  function printQrCode() {
+    if (!selectedTableUrl || !qrCardRef.current) return;
+
+    const printWindow = window.open("", "_blank", "width=900,height=1200");
+    if (!printWindow) return;
+
+    const qrMarkup = qrCardRef.current.innerHTML;
+    printWindow.document.open();
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>QR Mesa ${selectedTable}</title>
+          <style>
+            @page { size: auto; margin: 14mm; }
+            body {
+              margin: 0;
+              font-family: Arial, sans-serif;
+              color: #111;
+              display: grid;
+              place-items: center;
+              min-height: 100vh;
+              background: #fff;
+            }
+            .print-card {
+              width: 360px;
+              padding: 24px;
+              border: 2px solid #111;
+              border-radius: 20px;
+              text-align: center;
+            }
+            .print-card h1 {
+              margin: 0 0 8px;
+              font-size: 22px;
+            }
+            .print-card p {
+              margin: 0 0 18px;
+              font-size: 14px;
+            }
+            .brand {
+              margin-bottom: 6px;
+              font-size: 12px;
+              font-weight: 700;
+              letter-spacing: 0.18em;
+              text-transform: uppercase;
+              color: #d71920;
+            }
+            .marketing {
+              margin-top: 8px;
+              font-size: 13px;
+              color: #333;
+            }
+            .qr-box {
+              display: grid;
+              place-items: center;
+              margin: 0 auto 16px;
+              padding: 16px;
+              background: #fff;
+            }
+            .qr-box svg {
+              width: 220px !important;
+              height: 220px !important;
+            }
+            .footer {
+              font-size: 12px;
+              color: #555;
+              word-break: break-all;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="print-card">
+            <div class="brand">${brandHandle}</div>
+            <h1>Mesa ${selectedTable.padStart(2, "0")}</h1>
+            <p>Aponte a camera para abrir o cardapio</p>
+            <div class="qr-box">${qrMarkup}</div>
+            <div class="marketing">${marketingCopy}</div>
+            <div class="footer">${selectedTableUrl}</div>
+          </div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.onload = () => {
+      printWindow.print();
+      printWindow.close();
+    };
   }
 
   const displayTables = tables.length
@@ -216,10 +316,116 @@ function TablesAndQr() {
         <h2 className="mb-1 text-lg font-semibold">Gerar QR Code</h2>
         <p className="mb-4 text-sm text-zinc-500">Selecione a mesa e imprima o acesso do cliente.</p>
         <Input className="mb-4" value={selectedTable} onChange={(event) => setSelectedTable(event.target.value)} placeholder="Numero/token da mesa" />
-        <div className="grid place-items-center rounded-md bg-white p-4">
-          <QRCodeSVG value={`https://lendasbar.vercel.app/mesa/${selectedTable}`} size={180} />
+        <div ref={qrCardRef} className="grid gap-4 rounded-md bg-white p-4 text-center">
+          <div className="text-xs font-bold uppercase tracking-[0.24em] text-red-600">{brandHandle}</div>
+          <div className="grid place-items-center">
+            <QRCodeSVG value={selectedTableUrl} size={180} />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-zinc-900">Mesa {selectedTable.padStart(2, "0")}</p>
+            <p className="text-xs text-zinc-500 break-all">{selectedTableUrl}</p>
+            <p className="mt-2 text-sm text-zinc-700">{marketingCopy}</p>
+          </div>
         </div>
-        <Button className="mt-4 w-full">Imprimir QR Code</Button>
+        <Button className="mt-4 w-full" onClick={printQrCode} disabled={!selectedTableUrl && !selectedTable}>
+          Imprimir QR Code
+        </Button>
+      </Card>
+    </div>
+  );
+}
+
+type MusicRequest = {
+  id: string;
+  table: string;
+  customerName: string;
+  title: string;
+  artist: string | null;
+  notes: string | null;
+  status: string;
+  createdAt: string;
+  playedAt: string | null;
+};
+
+function MusicRequestsManager() {
+  const [requests, setRequests] = useState<MusicRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadRequests = useCallback(async () => {
+    const response = await fetch("/api/music-requests", { cache: "no-store" });
+    if (!response.ok) return;
+
+    const data = (await response.json()) as { requests?: MusicRequest[] };
+    setRequests(data.requests ?? []);
+  }, []);
+
+  useEffect(() => {
+    window.setTimeout(async () => {
+      await loadRequests();
+      setLoading(false);
+    }, 0);
+    const interval = window.setInterval(loadRequests, 5000);
+    return () => window.clearInterval(interval);
+  }, [loadRequests]);
+
+  async function markPlayed(id: string) {
+    const response = await fetch(`/api/music-requests/${id}/played`, { method: "POST" });
+    if (!response.ok) return;
+    await loadRequests();
+  }
+
+  const openRequests = requests.filter((request) => request.status === "OPEN");
+  const playedRequests = requests.filter((request) => request.status === "PLAYED");
+
+  return (
+    <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
+      <Card className="border-white/10 bg-black/45 p-4">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.18em] text-red-300">Pedidos de musica</p>
+            <h2 className="mt-1 text-lg font-semibold">Fila da cabine</h2>
+          </div>
+          <Badge className="border-red-500/30 bg-red-500/10 text-red-100">{openRequests.length} abertos</Badge>
+        </div>
+
+        {loading && <p className="text-sm text-zinc-500">Carregando pedidos...</p>}
+
+        <div className="space-y-3">
+          {openRequests.length === 0 && !loading && <p className="text-sm text-zinc-500">Nenhum pedido de musica aberto.</p>}
+          {openRequests.map((request) => (
+            <div key={request.id} className="rounded-lg border border-white/10 bg-white/[0.035] p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.18em] text-red-300">{request.table}</p>
+                  <h3 className="mt-1 text-lg font-semibold">{request.title}</h3>
+                  <p className="text-sm text-zinc-400">{request.artist || "Artista nao informado"}</p>
+                  <p className="mt-2 text-sm text-zinc-500">{request.customerName}</p>
+                </div>
+                <Badge className="border-amber-500/30 bg-amber-500/10 text-amber-100">Aguardando</Badge>
+              </div>
+
+              {request.notes && <p className="mt-3 rounded-md border border-white/10 bg-black/40 p-3 text-sm text-zinc-300">{request.notes}</p>}
+
+              <Button className="mt-4 w-full" onClick={() => markPlayed(request.id)}>
+                Marcar como tocada
+              </Button>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card className="border-white/10 bg-black/45 p-4">
+        <h2 className="mb-4 text-lg font-semibold">Historico recente</h2>
+        <div className="space-y-3">
+          {playedRequests.length === 0 && <p className="text-sm text-zinc-500">Nenhuma musica marcada como tocada ainda.</p>}
+          {playedRequests.slice(0, 8).map((request) => (
+            <div key={request.id} className="rounded-lg border border-white/10 bg-white/[0.035] p-3">
+              <p className="text-sm font-semibold">{request.title}</p>
+              <p className="text-xs text-zinc-500">{request.table} · {request.customerName}</p>
+              <p className="mt-2 text-xs text-emerald-300">Tocada</p>
+            </div>
+          ))}
+        </div>
       </Card>
     </div>
   );
@@ -297,7 +503,7 @@ function MenuManager() {
           <div className="mb-4 overflow-hidden rounded-lg border border-white/10 bg-zinc-950">
             <div className="relative grid aspect-[16/10] place-items-center bg-gradient-to-br from-red-950/40 to-zinc-950">
               {form.imageUrl ? (
-                <Image src={form.imageUrl} alt="Preview do produto" fill className="object-cover" />
+                <Image src={form.imageUrl} alt="Preview do produto" fill sizes="(max-width: 1280px) 100vw, 390px" className="object-cover" />
               ) : (
                 <div className="text-center text-zinc-500">
                   <Camera className="mx-auto mb-2 h-8 w-8 text-red-300" />
@@ -350,7 +556,7 @@ function MenuManager() {
           {visibleProducts.map((product) => (
             <div key={product.id} className="group flex gap-3 rounded-lg border border-white/10 bg-white/[0.035] p-3 transition hover:border-red-500/40">
               <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-md bg-zinc-900">
-                {product.imageUrl ? <Image src={product.imageUrl} alt={product.name} fill className="object-cover" /> : null}
+                {product.imageUrl ? <Image src={product.imageUrl} alt={product.name} fill sizes="96px" className="object-cover" /> : null}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold">{product.name}</p>

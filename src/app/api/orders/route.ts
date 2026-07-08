@@ -19,6 +19,36 @@ type OrderPayload = {
   }>;
 };
 
+type ComparableOrderItem = {
+  productId?: string;
+  productName: string;
+  quantity: number;
+  unitCents: number;
+  notes?: string;
+};
+
+const DUPLICATE_WINDOW_MS = 12_000;
+
+function normalizeOrderItems(items: ComparableOrderItem[]) {
+  return [...items]
+    .map((item) => ({
+      productId: item.productId ?? "",
+      productName: item.productName.trim().toLowerCase(),
+      quantity: item.quantity,
+      unitCents: item.unitCents,
+      notes: item.notes?.trim().toLowerCase() ?? ""
+    }))
+    .sort((a, b) => {
+      const keyA = `${a.productId}|${a.productName}|${a.unitCents}|${a.notes}`;
+      const keyB = `${b.productId}|${b.productName}|${b.unitCents}|${b.notes}`;
+      return keyA.localeCompare(keyB) || a.quantity - b.quantity;
+    });
+}
+
+function orderFingerprint(items: ComparableOrderItem[]) {
+  return JSON.stringify(normalizeOrderItems(items));
+}
+
 type OrdersRouteDb = {
   order: {
     findMany: (args: unknown) => Promise<Array<{
@@ -91,10 +121,17 @@ export async function GET() {
 
 type OrdersRouteDbWrite = {
   order: {
+    findFirst: (args: unknown) => Promise<{
+      id: string;
+      createdAt: Date;
+      items: Array<ComparableOrderItem>;
+    } | null>;
     create: (args: unknown) => Promise<unknown>;
   };
   table: OrdersRouteDb["table"];
   tableSession: OrdersRouteDb["tableSession"];
+  $transaction: <T>(fn: (tx: OrdersRouteDbWrite) => Promise<T>) => Promise<T>;
+  $queryRaw: (query: TemplateStringsArray, ...values: unknown[]) => Promise<unknown>;
 };
 
 export async function POST(request: Request) {
@@ -159,25 +196,78 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Order requires table/session context" }, { status: 400 });
   }
 
-  const order = await db.order.create({
-    data: {
-      restaurantId,
-      tableId,
-      sessionId,
-      sessionUserId: payload.sessionUserId,
-      customerName: payload.customerName,
-      items: {
-        create: payload.items.map((item) => ({
-          productId: item.productId,
-          productName: item.productName,
-          quantity: item.quantity,
-          unitCents: item.unitCents,
-          notes: item.notes
-        }))
-      }
-    },
-    include: { items: true }
+  const incomingFingerprint = orderFingerprint(payload.items);
+  const lockKey = `order:${sessionId}:${payload.sessionUserId ?? payload.customerName.trim().toLowerCase()}`;
+  const duplicateCutoff = new Date(Date.now() - DUPLICATE_WINDOW_MS);
+
+  const result = await db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+
+    const recentOrder = await tx.order.findFirst({
+      where: {
+        sessionId,
+        customerName: payload.customerName,
+        sessionUserId: payload.sessionUserId ?? null,
+        createdAt: { gte: duplicateCutoff },
+        status: { not: "CANCELLED" }
+      },
+      include: {
+        items: {
+          select: {
+            productId: true,
+            productName: true,
+            quantity: true,
+            unitCents: true,
+            notes: true
+          }
+        }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    if (recentOrder && orderFingerprint(recentOrder.items) === incomingFingerprint) {
+      return {
+        duplicated: true,
+        orderId: recentOrder.id
+      };
+    }
+
+    const order = await tx.order.create({
+      data: {
+        restaurantId,
+        tableId,
+        sessionId,
+        sessionUserId: payload.sessionUserId,
+        customerName: payload.customerName,
+        items: {
+          create: payload.items.map((item) => ({
+            productId: item.productId,
+            productName: item.productName,
+            quantity: item.quantity,
+            unitCents: item.unitCents,
+            notes: item.notes
+          }))
+        }
+      },
+      include: { items: true }
+    });
+
+    return {
+      duplicated: false,
+      order
+    };
   });
 
-  return NextResponse.json({ order });
+  if (result.duplicated) {
+    return NextResponse.json(
+      {
+        error: "Pedido duplicado detectado.",
+        duplicate: true,
+        orderId: result.orderId
+      },
+      { status: 409 }
+    );
+  }
+
+  return NextResponse.json({ order: result.order });
 }

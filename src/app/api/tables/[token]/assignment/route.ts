@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { hasStaffAccess } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 
 type AssignmentDb = {
@@ -11,6 +12,10 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ token: string }> }
 ) {
+  if (!(await hasStaffAccess("MANAGER"))) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  }
+
   const { token } = await params;
   const payload = (await request.json()) as { waiterId?: string | null };
 

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { hasStaffAccess } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 
 type CloseTableDb = {
@@ -18,6 +19,10 @@ export async function POST(
   _request: Request,
   { params }: { params: Promise<{ token: string }> }
 ) {
+  if (!(await hasStaffAccess("WAITER"))) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  }
+
   const { token } = await params;
 
   if (!process.env.DATABASE_URL) {
