@@ -119,8 +119,8 @@ export function KitchenDashboard() {
                           <span className="font-mono text-xs text-zinc-500">{order.id}</span>
                         </div>
                         <div className="mt-3 space-y-1 text-xs text-zinc-300">
-                          {order.items.map((item) => (
-                            <p key={item}>{item}</p>
+                          {order.items.map((item, index) => (
+                            <p key={`${order.id}-${index}-${item}`}>{item}</p>
                           ))}
                         </div>
                         <div className="mt-3 flex items-center justify-between text-xs text-zinc-500">
