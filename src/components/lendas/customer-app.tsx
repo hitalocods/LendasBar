@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Bell, CheckCircle2, CreditCard, Home, Minus, Music2, Plus, ReceiptText, Search, ShoppingBag, Trash2, Utensils } from "lucide-react";
+import { Bell, CreditCard, Home, Minus, Music2, Plus, ReceiptText, Search, ShoppingBag, Trash2, Utensils } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,16 +14,7 @@ import { useLendasStore } from "@/store/lendas-store";
 import { toThemeStyle } from "@/lib/restaurant-theme";
 
 type Product = (typeof menuItems)[number];
-type Step = "welcome" | "menu" | "cart" | "tracking" | "actions" | "music";
-type CustomerOrder = {
-  id: string;
-  table: string;
-  guest: string;
-  items: string[];
-  total: number;
-  status: "Pendente" | "Confirmado" | "Em preparo" | "Pronto" | "Entregue";
-  minutes: number;
-};
+type Step = "welcome" | "menu" | "cart" | "sent" | "actions" | "music";
 type BillGroup = {
   customerName: string;
   lines: Array<{ label: string; value: number }>;
@@ -99,6 +90,12 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
     if (!response.ok) return;
     const data = (await response.json()) as TableBill;
     setBill(data);
+
+    if (data.status === "CLOSED" || !data.groups?.length) {
+      if (data.status === "CLOSED") {
+        useLendasStore.setState({ cart: [] });
+      }
+    }
   }, [tableId]);
 
   const ensureClientId = useCallback(() => {
@@ -132,7 +129,7 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
   }, [ensureClientId, tableId]);
 
   useEffect(() => {
-    if (step !== "cart" && step !== "tracking") return;
+    if (step !== "cart") return;
     window.setTimeout(loadBill, 0);
     const interval = window.setInterval(loadBill, 2500);
     return () => window.clearInterval(interval);
@@ -187,14 +184,14 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
 
       if (response.ok) {
         submitOrder({ customerName, tableLabel: `Mesa ${tableId}` });
-        setStep("tracking");
+        setStep("sent");
         return;
       }
 
       if (response.status === 409) {
-        setOrderSendFeedback("Seu pedido ja foi enviado. Atualizando status...");
+        setOrderSendFeedback("Pedido ja enviado.");
         submitOrder({ customerName, tableLabel: `Mesa ${tableId}` });
-        setStep("tracking");
+        setStep("sent");
         return;
       }
 
@@ -217,6 +214,7 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
     document.cookie = `lendas_mesa_${tableId}_name=; path=/mesa/${tableId}; max-age=0; samesite=lax`;
     setName("");
     setSessionUser(null);
+    useLendasStore.setState({ cart: [] });
     setStep("welcome");
   }
 
@@ -272,7 +270,7 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
                 sendFeedback={orderSendFeedback}
               />
             )}
-            {step === "tracking" && <TrackingScreen tableId={tableId} customerName={customerName} />}
+            {step === "sent" && <OrderSentScreen onBackToMenu={() => setStep("menu")} />}
             {step === "music" && (
               <MusicScreen
                 customerName={customerName}
@@ -290,7 +288,7 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
             {step === "actions" && <WaiterActions onWaiter={() => sendWaiterCall("WAITER")} onBill={() => sendWaiterCall("BILL")} />}
           </div>
 
-          {step !== "welcome" && (
+          {step !== "welcome" && step !== "sent" && (
             <CustomerNav active={step} setStep={setStep} cartCount={cartCount} />
           )}
 
@@ -528,8 +526,8 @@ function SharedCart({
               {group.customerName === customerName && <Badge className="border-red-500/30 bg-red-500/10 text-red-100">voce</Badge>}
             </div>
             <div className="space-y-2">
-              {group.lines.map((line) => (
-                <Line key={`${group.customerName}-${line.label}`} label={line.label} value={line.value / 100} />
+              {group.lines.map((line, index) => (
+                <Line key={`${group.customerName}-${line.label}-${index}`} label={line.label} value={line.value / 100} />
               ))}
             </div>
           </Card>
@@ -589,64 +587,16 @@ function Line({ label, value, onRemove }: { label: string; value: number; onRemo
   );
 }
 
-function TrackingScreen({ tableId, customerName }: { tableId: string; customerName: string }) {
-  const [order, setOrder] = useState<CustomerOrder | null>(null);
-
-  const loadOrder = useCallback(async () => {
-    const response = await fetch("/api/orders", { cache: "no-store" });
-    if (!response.ok) return;
-
-    const data = (await response.json()) as { orders?: CustomerOrder[] };
-    const latestOrder =
-      data.orders?.find((item) => item.table === `Mesa ${tableId}` && item.guest === customerName) ?? null;
-    setOrder(latestOrder);
-  }, [customerName, tableId]);
-
-  useEffect(() => {
-    window.setTimeout(loadOrder, 0);
-    const interval = window.setInterval(loadOrder, 2500);
-    return () => window.clearInterval(interval);
-  }, [loadOrder]);
-
-  const currentStatus = order?.status ?? "Pendente";
-  const statusRank = {
-    Pendente: 0,
-    Confirmado: 1,
-    "Em preparo": 2,
-    Pronto: 3,
-    Entregue: 4
-  } satisfies Record<CustomerOrder["status"], number>;
-
-  const steps = [
-    ["Aguardando confirmacao", "Recebemos seu pedido", statusRank[currentStatus] >= 0],
-    ["Confirmado", "A cozinha aceitou seu pedido", statusRank[currentStatus] >= 1],
-    ["Em preparo", "Seu pedido esta sendo preparado", statusRank[currentStatus] >= 2],
-    ["Pedido pronto", "Retirada/entrega em instantes", statusRank[currentStatus] >= 3],
-    ["Finalizado", "Obrigado. Volte sempre!", statusRank[currentStatus] >= 4]
-  ] as const;
-
+function OrderSentScreen({ onBackToMenu }: { onBackToMenu: () => void }) {
   return (
     <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
-      <h1 className="mb-1 text-2xl font-semibold">Status do pedido</h1>
-      <p className="mb-5 text-sm text-zinc-500">
-        {order ? `Pedido ${order.id.slice(-6).toUpperCase()} · Mesa ${tableId}` : `Mesa ${tableId} · aguardando pedido`}
-      </p>
-      <div className="space-y-3">
-        {steps.map(([title, copy, active]) => (
-          <Card key={title} className="flex gap-3 border-white/10 bg-white/[0.045] p-4">
-            <div className={cn("grid h-8 w-8 shrink-0 place-items-center rounded-full border", active ? "border-red-400/60 bg-red-500/20 text-red-200" : "border-white/10 bg-white/[0.04] text-zinc-500")}>
-              <CheckCircle2 className="h-4 w-4" />
-            </div>
-            <div>
-              <p className={cn("font-semibold", active ? "text-red-50" : "text-zinc-300")}>{title}</p>
-              <p className="text-sm text-zinc-500">{copy}</p>
-            </div>
-          </Card>
-        ))}
-      </div>
-      <Card className="mt-6 border-white/10 bg-black/45 p-5 text-center">
-        <p className="text-sm text-zinc-500">{order ? "Status atual" : "Pedido"}</p>
-        <p className="mt-1 text-3xl font-semibold text-red-400">{order ? currentStatus : "Ainda nao enviado"}</p>
+      <h1 className="mb-1 text-2xl font-semibold">Pedido enviado</h1>
+      <p className="mb-5 text-sm text-zinc-500">Recebemos seu pedido e a equipe vai cuidar dele agora.</p>
+      <Card className="border-white/10 bg-white/[0.045] p-5 text-center">
+        <p className="text-3xl font-semibold text-red-400">Pedido enviado</p>
+        <Button className="mt-5 w-full" onClick={onBackToMenu}>
+          Voltar ao cardapio
+        </Button>
       </Card>
     </motion.section>
   );
@@ -791,13 +741,12 @@ function CustomerNav({ active, setStep, cartCount }: { active: Step; setStep: (s
   const items = [
     ["menu", Home, "Cardapio"],
     ["cart", ShoppingBag, "Carrinho"],
-    ["tracking", CheckCircle2, "Pedido"],
     ["music", Music2, "Musica"],
     ["actions", CreditCard, "Conta"]
   ] as const;
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto grid max-w-[430px] grid-cols-5 border-t border-white/10 bg-black/85 px-3 py-3 backdrop-blur">
+    <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto grid max-w-[430px] grid-cols-4 border-t border-white/10 bg-black/85 px-3 py-3 backdrop-blur">
       {items.map(([step, Icon, label]) => (
         <button key={step} onClick={() => setStep(step)} className={cn("relative flex flex-col items-center gap-1 text-[11px] text-zinc-500", active === step && "text-red-500")}>
           <Icon className="h-4 w-4" />
@@ -808,3 +757,6 @@ function CustomerNav({ active, setStep, cartCount }: { active: Step; setStep: (s
     </nav>
   );
 }
+
+
+

@@ -51,13 +51,13 @@ async function main() {
   });
 
   const waiters = [
-    { name: "Joao", email: "joao@lendas.local", from: 1, to: 6 },
-    { name: "Maria", email: "maria@lendas.local", from: 7, to: 12 },
-    { name: "Pedro", email: "pedro@lendas.local", from: 13, to: 20 }
+    { name: "Joao", email: "joao@lendas.local", from: 1, to: 10 },
+    { name: "Maria", email: "maria@lendas.local", from: 11, to: 20 },
+    { name: "Pedro", email: "pedro@lendas.local", from: 21, to: 30 }
   ];
 
   const staff = [
-    { name: "Dono", email: "owner@lendas.local", role: "OWNER", password: "owner@2018" },
+    { name: "Rui", email: "rui@lendas.local", role: "OWNER", password: "rui@2018" },
     { name: "Gerente", email: "manager@lendas.local", role: "MANAGER", password: "manager@2018" },
     { name: "Cozinha", email: "cozinha@lendas.local", role: "KITCHEN", password: "kitchen@2018" },
     ...waiters.map((waiter) => ({
@@ -290,7 +290,7 @@ async function main() {
     }
   }
 
-  for (let number = 1; number <= 20; number += 1) {
+  for (let number = 1; number <= 30; number += 1) {
     const assignedWaiter = waitersByRange.find((waiter) => number >= waiter.from && number <= waiter.to);
 
     await prisma.table.upsert({

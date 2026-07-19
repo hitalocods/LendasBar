@@ -86,11 +86,18 @@ export default async function LoginPage({
         <p className="mt-2 text-center text-sm text-zinc-500">Entre com email e senha da equipe.</p>
         <form action={login} className="mt-6 space-y-3">
           <input type="hidden" name="next" value={next} />
-          <Input name="email" type="email" placeholder="Email" autoComplete="email" />
-          <Input name="password" type="password" placeholder="Senha" autoComplete="current-password" />
-          {params.error && <p className="text-sm text-red-300">Senha incorreta.</p>}
-          <Button className="w-full" type="submit">Entrar</Button>
+          <Input name="email" type="email" placeholder="Email (ex: rui@lendas.local)" autoComplete="email" />
+          <Input name="password" type="password" placeholder="Senha (ex: rui@2018)" autoComplete="current-password" />
+          {params.error && <p className="text-sm text-red-300 text-center font-medium">Credenciais inválidas ou sem acesso a esta área.</p>}
+          <Button className="w-full font-bold" type="submit">Entrar no Sistema</Button>
         </form>
+
+        <div className="mt-6 rounded-lg border border-white/10 bg-white/[0.03] p-3 text-xs space-y-1.5 text-zinc-400">
+          <p className="font-semibold text-zinc-300">🔑 Credenciais de Acesso:</p>
+          <p><strong className="text-red-300">Admin/Dono:</strong> owner@lendas.local | owner@2018</p>
+          <p><strong className="text-amber-300">Cozinha:</strong> cozinha@lendas.local | kitchen@2018</p>
+          <p><strong className="text-sky-300">Garçons:</strong> joao@lendas.local | joao@2018</p>
+        </div>
       </Card>
     </main>
   );

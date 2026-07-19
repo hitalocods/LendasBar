@@ -73,75 +73,54 @@ const nextStatus: Record<OrderStatus, OrderStatus> = {
 
 const featured = menuItems[1];
 
+const createInitialState = () => ({
+  restaurant: {
+    id: "rest_lendas_2018",
+    name: "LENDAS 2018",
+    slug: "lendas-2018",
+    accent: "#d71920",
+    logoUrl: "/lendas-logo.png"
+  },
+  tableSession: {
+    id: "sess_mesa_12_active",
+    tableToken: "12",
+    tableNumber: "12",
+    status: "ACTIVE" as const,
+    activeUsers: []
+  },
+  cart: [],
+  waiterCalls: 0,
+  billRequests: 0,
+  orders: []
+});
+
 export const useLendasStore = create<LendasState>()(
   persist(
     (set) => ({
-      restaurant: {
-        id: "rest_lendas_2018",
-        name: "LENDAS 2018",
-        slug: "lendas-2018",
-        accent: "#d71920",
-        logoUrl: "/lendas-logo.png"
-      },
-      tableSession: {
-        id: "sess_mesa_12_active",
-        tableToken: "12",
-        tableNumber: "12",
-        status: "ACTIVE",
-        activeUsers: []
-      },
-      cart: [],
-      waiterCalls: 2,
-      billRequests: 1,
-      orders: [
-        {
-          id: "#1258",
-          table: "Mesa 12",
-          sessionId: "sess_mesa_12_active",
-          guest: "Joao",
-          items: ["2x Coxinha com Catupiry", "1x Coca-Cola Lata"],
-          total: 23.8,
-          status: "Pendente",
-          minutes: 2
-        },
-        {
-          id: "#1257",
-          table: "Mesa 05",
-          sessionId: "sess_mesa_05_active",
-          guest: "Maria",
-          items: ["1x Batata Frita", "1x Suco de Uva"],
-          total: 24.8,
-          status: "Em preparo",
-          minutes: 12
-        },
-        {
-          id: "#1256",
-          table: "Mesa 03",
-          sessionId: "sess_mesa_03_active",
-          guest: "Pedro",
-          items: ["2x Coxinha Tradicional"],
-          total: 15.8,
-          status: "Pronto",
-          minutes: 18
-        }
-      ],
+      ...createInitialState(),
       joinTable: (name, tableToken) =>
         set((state) => {
           const trimmedName = name.trim();
-          const existingUser = state.tableSession.activeUsers.find(
-            (user) => user.name.toLowerCase() === trimmedName.toLowerCase()
-          );
+          const isNewTable = state.tableSession.tableToken !== tableToken;
+          const isClosed = state.tableSession.status === "CLOSED";
+          const existingUser =
+            !isNewTable &&
+            !isClosed &&
+            state.tableSession.activeUsers.find(
+              (user) => user.name.toLowerCase() === trimmedName.toLowerCase()
+            );
 
           return {
+            cart: isNewTable || isClosed ? [] : state.cart,
             tableSession: {
               ...state.tableSession,
               tableToken,
               tableNumber: tableToken,
-              status: state.tableSession.status === "CLOSED" ? "ACTIVE" : state.tableSession.status,
+              status: "ACTIVE",
               activeUsers: existingUser
                 ? state.tableSession.activeUsers
                 : [
-                    ...state.tableSession.activeUsers,
+                    ...(isNewTable || isClosed ? [] : state.tableSession.activeUsers),
                     {
                       id: `user_${trimmedName.toLowerCase()}_${Date.now()}`,
                       name: trimmedName,
@@ -225,6 +204,8 @@ export const useLendasStore = create<LendasState>()(
     }),
     {
       name: "lendas-table-session",
+      version: 2,
+      migrate: () => createInitialState(),
       partialize: (state) => ({
         tableSession: state.tableSession,
         cart: state.cart

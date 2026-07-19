@@ -54,6 +54,7 @@ export async function GET(
   const groups = new Map<string, Array<{ label: string; value: number }>>();
 
   for (const order of table.currentSession?.orders ?? []) {
+    if (order.status === "CANCELLED") continue;
     const lines = groups.get(order.customerName) ?? [];
     for (const item of order.items) {
       lines.push({

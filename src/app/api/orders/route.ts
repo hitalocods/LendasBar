@@ -90,9 +90,13 @@ export async function GET() {
   }
 
   const db = getDb() as unknown as OrdersRouteDb;
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+
   const orders = await db.order.findMany({
     where: {
-      status: { not: "CANCELLED" }
+      status: { not: "CANCELLED" },
+      createdAt: { gte: startOfDay }
     },
     orderBy: { createdAt: "desc" },
     take: 50,

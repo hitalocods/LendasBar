@@ -1,29 +1,48 @@
-const CACHE_NAME = "lendas-2018-v1";
-const OFFLINE_URL = "/offline";
+const CACHE_NAME = "lendas-v2";
+const ASSETS_TO_CACHE = [
+  "/",
+  "/lendas-logo.png",
+  "/manifest.webmanifest"
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll([OFFLINE_URL, "/lendas-logo.png"]))
+    caches.open(CACHE_NAME).then(async (cache) => {
+      for (const asset of ASSETS_TO_CACHE) {
+        try {
+          await cache.add(asset);
+        } catch {
+          // Ignore individual asset caching failures gracefully
+        }
+      }
+    })
   );
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames
+          .filter((name) => name !== CACHE_NAME)
+          .map((name) => caches.delete(name))
+      );
+    })
+  );
+  self.clients.claim();
 });
 
 self.addEventListener("fetch", (event) => {
-  if (event.request.method !== "GET") return;
+  if (event.request.method !== "GET" || event.request.url.includes("/api/")) {
+    return;
+  }
 
   event.respondWith(
-    fetch(event.request).catch(async () => {
-      if (event.request.mode === "navigate") {
-        const offlinePage = await caches.match(OFFLINE_URL);
-        return offlinePage || Response.error();
-      }
-
-      const cached = await caches.match(event.request);
-      return cached || Response.error();
+    fetch(event.request).catch(() => {
+      return caches.match(event.request).then((response) => {
+        return response || caches.match("/");
+      });
     })
   );
 });
