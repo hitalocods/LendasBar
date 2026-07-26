@@ -203,6 +203,21 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
     }
   }
 
+  async function sendWaiterCall(type: "WAITER" | "BILL") {
+    if (type === "WAITER") callWaiter(customerName);
+    else requestBill(customerName);
+
+    await fetch("/api/waiter-calls", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tableToken: tableId,
+        customerName,
+        type
+      })
+    }).catch(() => {});
+  }
+
   function enterTable() {
     document.cookie = `lendas_mesa_${tableId}_name=${encodeURIComponent(name.trim())}; path=/mesa/${tableId}; max-age=2592000; samesite=lax`;
     joinTable(name, tableId);
@@ -218,23 +233,6 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
     setStep("welcome");
   }
 
-  async function sendWaiterCall(type: "WAITER" | "BILL") {
-    await fetch("/api/waiter-calls", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        tableToken: tableId,
-        customerName,
-        type
-      })
-    }).catch(() => {});
-
-    if (type === "WAITER") {
-      callWaiter(customerName);
-    } else {
-      requestBill(customerName);
-    }
-  }
 
   return (
     <main className="min-h-screen bg-background text-foreground" style={toThemeStyle({ ...restaurant, background: "#050505" })}>
@@ -366,32 +364,115 @@ function MenuScreen({
   onReset: () => void;
   cartCount: number;
 }) {
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const popularProducts = useMemo(() => products.slice(0, 4), [products]);
+
+  const displayedProducts = useMemo(() => {
+    if (!searchQuery.trim()) return products;
+    return products.filter(
+      (item) =>
+        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.desc.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.category.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [products, searchQuery]);
+
   return (
     <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
-      <header className="mb-5 flex items-center justify-between">
+      <header className="mb-4 flex items-center justify-between">
         <div>
-          <p className="text-sm text-zinc-500">Mesa {tableId} · {connectedUsers} conectados</p>
-          <h1 className="text-2xl font-semibold">Ola, {customerName}</h1>
-          <button onClick={onReset} className="mt-1 text-xs text-red-300">Trocar nome</button>
+          <p className="text-xs font-semibold uppercase tracking-wider text-red-400">Mesa {tableId} · {connectedUsers} {connectedUsers === 1 ? "pessoa" : "pessoas"}</p>
+          <h1 className="text-2xl font-bold">Olá, {customerName} 👋</h1>
+          <button onClick={onReset} className="mt-0.5 text-xs text-zinc-400 hover:text-red-300 underline">Trocar nome</button>
         </div>
-        <div className="relative h-11 w-11 overflow-hidden rounded-full border border-red-500/40">
+        <div className="relative h-12 w-12 overflow-hidden rounded-full border border-red-500/40 shadow-lg">
           <Image src="/lendas-logo.png" alt="LENDAS 2018" fill className="object-cover" />
         </div>
       </header>
 
-      <div className="mb-4 flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.055] px-3">
-        <Search className="h-4 w-4 text-zinc-500" />
-        <Input className="border-0 bg-transparent px-0 focus:ring-0" placeholder="Buscar no cardapio..." />
+      {/* Barra de Busca Inteligente */}
+      <div className="mb-4 flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.05] px-3 py-1 shadow-inner">
+        <Search className="h-4 w-4 text-red-400 shrink-0" />
+        <Input
+          className="border-0 bg-transparent px-0 text-sm focus:ring-0 placeholder:text-zinc-500"
+          placeholder="O que deseja pedir hoje? Ex: Cerveja, Hamburguer..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
       </div>
 
-      <div className="mb-5 flex gap-2 overflow-x-auto pb-1">
+      {/* Banner de Promoção do Dia / Happy Hour */}
+      {!searchQuery && (
+        <Card className="mb-5 overflow-hidden border-red-500/40 bg-gradient-to-r from-red-950/80 via-black to-zinc-950 p-4 text-white shadow-xl relative">
+          <div className="relative z-10 flex items-center justify-between">
+            <div>
+              <Badge className="mb-1.5 border-amber-500/50 bg-amber-500/20 text-amber-300 font-extrabold text-[10px] uppercase tracking-wider">
+                🏷️ Promoção do Dia
+              </Badge>
+              <h2 className="text-base font-bold text-white">Combo Happy Hour Lendas 🍻</h2>
+              <p className="text-xs text-zinc-300 mt-0.5">Pedindo 2 bebidas ou porções, ganhe desconto especial na comanda.</p>
+            </div>
+            <div className="text-right shrink-0">
+              <span className="text-xs text-zinc-400 line-through">R$ 35,00</span>
+              <p className="text-lg font-black text-emerald-400">R$ 29,90</p>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Carrossel de Mais Pedidos da Casa */}
+      {!searchQuery && (
+        <div className="mb-5 space-y-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold tracking-wide text-zinc-200 flex items-center gap-1.5">
+              <span>🔥</span> Mais Pedidos da Casa
+            </h2>
+            <span className="text-[11px] text-zinc-500 font-medium">Os campeões do bar</span>
+          </div>
+
+          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
+            {popularProducts.map((item) => (
+              <div
+                key={`pop-${item.name}`}
+                onClick={() => onSelectProduct(item)}
+                className="group relative flex w-36 shrink-0 flex-col justify-between rounded-xl border border-red-500/30 bg-gradient-to-b from-white/[0.06] to-black p-2.5 transition cursor-pointer select-none shadow-md hover:border-red-400"
+              >
+                <div>
+                  <div className="relative mb-2 aspect-square w-full overflow-hidden rounded-lg bg-zinc-900">
+                    {item.imageUrl ? (
+                      <Image src={item.imageUrl} alt={item.name} fill className="object-cover group-hover:scale-105 transition" />
+                    ) : (
+                      <Utensils className="m-auto h-8 w-8 text-red-400" />
+                    )}
+                    <Badge className="absolute left-1 top-1 bg-red-600/90 text-[9px] px-1 py-0 font-extrabold text-white">
+                      🔥 Top
+                    </Badge>
+                  </div>
+                  <p className="truncate text-xs font-bold text-white">{item.name}</p>
+                  <p className="line-clamp-1 text-[10px] text-zinc-400 mt-0.5">{item.desc}</p>
+                </div>
+                <div className="mt-2 flex items-center justify-between border-t border-white/10 pt-1.5">
+                  <span className="text-xs font-extrabold text-emerald-400">{formatCurrency(item.price)}</span>
+                  <span className="grid h-6 w-6 place-items-center rounded-full bg-red-600 text-white text-xs font-bold shadow">
+                    +
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Categorias Filtro */}
+      <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
         {categories.map((item) => (
           <button
             key={item}
             onClick={() => setCategory(item)}
             className={cn(
-              "shrink-0 rounded-md border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-semibold text-zinc-300",
-              category === item && "border-red-500/60 bg-red-600 text-white"
+              "shrink-0 rounded-lg border border-white/10 bg-white/[0.05] px-3.5 py-2 text-xs font-bold transition text-zinc-300",
+              category === item && "border-red-500/60 bg-red-600 text-white shadow-md"
             )}
           >
             {item}
@@ -399,10 +480,14 @@ function MenuScreen({
         ))}
       </div>
 
+      {/* Lista Principal de Produtos */}
       <div className="space-y-3">
-        {products.map((item) => (
+        {displayedProducts.length === 0 && (
+          <p className="py-8 text-center text-xs text-zinc-500">Nenhum produto encontrado para a busca.</p>
+        )}
+        {displayedProducts.map((item) => (
           <button key={item.name} onClick={() => onSelectProduct(item)} className="w-full text-left">
-            <Card className="flex items-center gap-3 border-white/10 bg-white/[0.045] p-3">
+            <Card className="flex items-center gap-3 border-white/10 bg-white/[0.045] p-3 transition hover:border-red-500/40">
               <div className={cn("relative grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-lg bg-gradient-to-br", item.tone)}>
                 {item.imageUrl ? (
                   <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
@@ -411,11 +496,11 @@ function MenuScreen({
                 )}
               </div>
               <div className="min-w-0 flex-1">
-                <h2 className="truncate text-sm font-semibold">{item.name}</h2>
-                <p className="line-clamp-2 text-xs text-zinc-400">{item.desc}</p>
-                <p className="mt-2 text-sm font-semibold text-white">{formatCurrency(item.price)}</p>
+                <h2 className="truncate text-sm font-semibold text-white">{item.name}</h2>
+                <p className="line-clamp-2 text-xs text-zinc-400 mt-0.5">{item.desc}</p>
+                <p className="mt-2 text-sm font-bold text-emerald-400">{formatCurrency(item.price)}</p>
               </div>
-              <span className="grid h-9 w-9 place-items-center rounded-full bg-red-600 text-white">
+              <span className="grid h-9 w-9 place-items-center rounded-full bg-red-600 text-white shadow-md hover:bg-red-500">
                 <Plus className="h-4 w-4" />
               </span>
             </Card>
@@ -424,12 +509,12 @@ function MenuScreen({
       </div>
 
       {cartCount > 0 && (
-        <Button className="fixed inset-x-4 bottom-24 z-20 mx-auto max-w-[398px] justify-between" onClick={onCart}>
+        <Button className="fixed inset-x-4 bottom-24 z-20 mx-auto max-w-[398px] justify-between font-bold shadow-2xl" onClick={onCart}>
           <span className="flex items-center gap-2">
             <ShoppingBag className="h-4 w-4" />
-            Ver carrinho
+            Ver carrinho da mesa
           </span>
-          <span>{cartCount} itens</span>
+          <span className="rounded bg-black/30 px-2 py-0.5 text-xs font-mono">{cartCount} {cartCount === 1 ? "item" : "itens"}</span>
         </Button>
       )}
     </motion.section>

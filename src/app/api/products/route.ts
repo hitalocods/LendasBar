@@ -10,6 +10,7 @@ type ProductRecord = {
   description: string;
   imageUrl: string | null;
   priceCents: number;
+  consumerCode: string | null;
   active: boolean;
   category: { name: string } | null;
 };
@@ -35,6 +36,7 @@ function toClientProduct(product: ProductRecord) {
     description: product.description,
     imageUrl: product.imageUrl,
     price: product.priceCents / 100,
+    consumerCode: product.consumerCode,
     category: product.category?.name ?? "Cardapio",
     active: product.active,
     tone: "from-red-700/30 to-zinc-950"
@@ -91,6 +93,7 @@ export async function POST(request: Request) {
     category?: string;
     price?: number;
     imageUrl?: string;
+    consumerCode?: string;
   };
 
   if (!body.name?.trim() || !body.description?.trim() || !body.category?.trim() || !body.price) {
@@ -124,6 +127,7 @@ export async function POST(request: Request) {
       name: body.name.trim(),
       description: body.description.trim(),
       imageUrl: body.imageUrl?.trim() || null,
+      consumerCode: body.consumerCode?.trim() || null,
       priceCents: Math.round(Number(body.price) * 100)
     },
     include: { category: { select: { name: true } } }

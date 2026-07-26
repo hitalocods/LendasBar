@@ -1,174 +1,104 @@
 import { NextResponse } from "next/server";
-import { hasStaffAccess } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-type WaiterCallPayload = {
-  restaurantId?: string;
-  tableId?: string;
-  tableToken?: string;
-  sessionId?: string;
-  customerName: string;
-  type: "WAITER" | "BILL";
-};
-
-type WaiterCallsRouteDb = {
-  waiterCall: {
-    findMany: (args: unknown) => Promise<Array<{
-      id: string;
-      customerName: string;
-      type: string;
-      status: string;
-      createdAt: Date;
-      table: { number: number; assignedWaiter: null | { id: string; name: string } };
-      assignedWaiter: null | { id: string; name: string };
-    }>>;
-    create: (args: unknown) => Promise<unknown>;
-  };
-  tableSession: {
-    create: (args: unknown) => Promise<{ id: string }>;
-    update: (args: unknown) => Promise<unknown>;
-  };
-  table: {
-    findUnique: (args: unknown) => Promise<{
-      id: string;
-      restaurantId: string;
-      currentSessionId: string | null;
-      assignedWaiterId: string | null;
-      currentSession: { id: string } | null;
-    } | null>;
-    update: (args: unknown) => Promise<unknown>;
-  };
-};
-
-export async function GET(request: Request) {
-  if (!(await hasStaffAccess("WAITER"))) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-  }
-
+export async function GET() {
   if (!process.env.DATABASE_URL) {
     return NextResponse.json({ calls: [] });
   }
 
-  const { searchParams } = new URL(request.url);
-  const waiterId = searchParams.get("waiterId");
-  const db = getDb() as unknown as WaiterCallsRouteDb;
+  const db = getDb();
+  const restaurant = await db.restaurant.findFirst({
+    where: { slug: "lendas-2018" },
+    select: { id: true }
+  });
+
+  if (!restaurant) return NextResponse.json({ calls: [] });
+
   const calls = await db.waiterCall.findMany({
     where: {
-      status: { not: "RESOLVED" },
-      ...(waiterId ? { assignedWaiterId: waiterId } : {})
+      restaurantId: restaurant.id,
+      status: { not: "RESOLVED" }
     },
-    orderBy: { createdAt: "desc" },
-    take: 50,
     include: {
-      assignedWaiter: { select: { id: true, name: true } },
-      table: {
-        select: {
-          number: true,
-          assignedWaiter: { select: { id: true, name: true } }
-        }
-      }
-    }
+      table: { select: { number: true, assignedWaiter: { select: { id: true, name: true } } } },
+      assignedWaiter: { select: { id: true, name: true } }
+    },
+    orderBy: { createdAt: "desc" }
   });
 
   return NextResponse.json({
-    calls: calls.map((call) => ({
-      id: call.id,
-      table: `Mesa ${call.table.number}`,
-      customerName: call.customerName,
-      type: call.type,
-      status: call.status,
-      waiter: call.assignedWaiter ?? call.table.assignedWaiter,
-      minutes: Math.max(0, Math.round((Date.now() - call.createdAt.getTime()) / 60000))
+    calls: calls.map((c) => ({
+      id: c.id,
+      table: `Mesa ${c.table.number.toString().padStart(2, "0")}`,
+      tableNumber: c.table.number,
+      customerName: c.customerName,
+      type: c.type,
+      status: c.status,
+      waiter: c.assignedWaiter || c.table.assignedWaiter || null,
+      minutes: Math.max(0, Math.round((Date.now() - c.createdAt.getTime()) / 60000)),
+      createdAt: c.createdAt.toISOString()
     }))
   });
 }
 
 export async function POST(request: Request) {
-  const payload = (await request.json()) as WaiterCallPayload;
+  const body = (await request.json().catch(() => ({}))) as {
+    tableToken?: string;
+    customerName?: string;
+    type?: "WAITER" | "BILL";
+  };
 
-  if (!payload.customerName || !payload.type) {
-    return NextResponse.json({ error: "Waiter call requires customer and type" }, { status: 400 });
+  const tableToken = body.tableToken;
+  const customerName = body.customerName?.trim() || "Cliente";
+  const type = body.type === "BILL" ? "BILL" : "WAITER";
+
+  if (!tableToken) {
+    return NextResponse.json({ error: "Token da mesa é obrigatório" }, { status: 400 });
   }
 
   if (!process.env.DATABASE_URL) {
-    return NextResponse.json({
-      mode: "demo",
-      waiterCall: {
-        id: `demo_call_${Date.now()}`,
-        status: "OPEN",
-        ...payload
-      }
+    return NextResponse.json({ mode: "demo", call: { id: `demo_call_${Date.now()}`, type, status: "OPEN" } });
+  }
+
+  const db = getDb();
+  const table = await db.table.findUnique({
+    where: { qrToken: tableToken },
+    include: { currentSession: true }
+  });
+
+  if (!table) return NextResponse.json({ error: "Mesa não encontrada" }, { status: 404 });
+
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+
+  let currentSession = table.currentSession;
+  if (!currentSession || currentSession.openedAt < startOfDay || currentSession.status === "CLOSED") {
+    currentSession = await db.tableSession.create({
+      data: { restaurantId: table.restaurantId, tableId: table.id }
     });
   }
 
-  const db = getDb() as unknown as WaiterCallsRouteDb;
-  let restaurantId = payload.restaurantId;
-  let tableId = payload.tableId;
-  let sessionId = payload.sessionId;
-  let assignedWaiterId: string | null = null;
-
-  if (payload.tableToken) {
-    const table = await db.table.findUnique({
-      where: { qrToken: payload.tableToken },
-      include: { currentSession: true }
-    });
-
-    if (!table) {
-      return NextResponse.json({ error: "Table not found" }, { status: 404 });
-    }
-
-    restaurantId = table.restaurantId;
-    tableId = table.id;
-    assignedWaiterId = table.assignedWaiterId;
-    sessionId =
-      table.currentSession?.id ??
-      (
-        await db.tableSession.create({
-          data: {
-            restaurantId: table.restaurantId,
-            tableId: table.id
-          }
-        })
-      ).id;
-
-    if (!table.currentSessionId) {
-      await db.table.update({
-        where: { id: table.id },
-        data: {
-          currentSessionId: sessionId,
-          status: payload.type === "BILL" ? "WAITING_BILL" : "OCCUPIED"
-        }
-      });
-    }
-  }
-
-  if (!restaurantId || !tableId || !sessionId) {
-    return NextResponse.json({ error: "Waiter call requires table/session context" }, { status: 400 });
-  }
-
-  const waiterCall = await db.waiterCall.create({
+  // Se o tipo for BILL, atualiza o status da mesa para WAITING_BILL
+  await db.table.update({
+    where: { id: table.id },
     data: {
-      restaurantId,
-      tableId,
-      sessionId,
-      customerName: payload.customerName,
-      type: payload.type,
-      assignedWaiterId
+      currentSessionId: currentSession.id,
+      status: type === "BILL" ? "WAITING_BILL" : "OCCUPIED"
     }
   });
 
-  if (payload.type === "BILL") {
-    await db.tableSession.update({
-      where: { id: sessionId },
-      data: { status: "CLOSING" }
-    });
-    await db.table.update({
-      where: { id: tableId },
-      data: { status: "WAITING_BILL" }
-    });
-  }
+  const call = await db.waiterCall.create({
+    data: {
+      restaurantId: table.restaurantId,
+      tableId: table.id,
+      sessionId: currentSession.id,
+      customerName,
+      type,
+      assignedWaiterId: table.assignedWaiterId || null
+    }
+  });
 
-  return NextResponse.json({ waiterCall });
+  return NextResponse.json({ call });
 }

@@ -11,22 +11,16 @@ export default function Home() {
           <Image src="/lendas-logo.png" alt="LENDAS 2018" fill className="object-cover" priority />
         </div>
         <p className="text-xs uppercase tracking-[0.22em] text-red-300">LENDAS 2018</p>
-        <h1 className="mt-2 text-2xl font-semibold">Ambientes separados</h1>
+        <h1 className="mt-2 text-2xl font-semibold">Cardápio Digital & Som</h1>
         <p className="mt-2 text-sm text-zinc-500">
-          Acesse cada experiencia isolada pelo perfil de uso.
+          Integração automática com o Programa Consumer (PDV).
         </p>
         <div className="mt-6 grid gap-3">
-          <Button asChild>
-            <Link href="/mesa/12">Cliente · Mesa 12</Link>
+          <Button asChild className="font-bold">
+            <Link href="/mesa/1">Cardápio Digital (Mesa 01)</Link>
           </Button>
-          <Button asChild variant="secondary">
-            <Link href="/kitchen">Cozinha</Link>
-          </Button>
-          <Button asChild variant="secondary">
-            <Link href="/waiter">Garcom</Link>
-          </Button>
-          <Button asChild variant="secondary">
-            <Link href="/admin">Admin</Link>
+          <Button asChild variant="secondary" className="font-semibold">
+            <Link href="/admin">Painel Administrativo & Música</Link>
           </Button>
         </div>
       </Card>

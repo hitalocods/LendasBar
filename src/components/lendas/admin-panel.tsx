@@ -2,16 +2,15 @@
 
 import Image from "next/image";
 import { QRCodeSVG } from "qrcode.react";
-import { BarChart3, Boxes, Camera, Clock, Grid2X2, KeyRound, LogOut, Music2, Pencil, Printer, ReceiptText, Search, Settings, ShieldCheck, ShoppingBag, ToggleLeft, ToggleRight, Trash2, Upload, UserPlus, Users, WalletCards, Copy, ExternalLink, Check } from "lucide-react";
+import { Boxes, Camera, Grid2X2, LogOut, Music2, Pencil, Printer, Search, ToggleLeft, ToggleRight, Trash2, Upload, WalletCards, Copy, Check, UserPlus, Bell, Volume2, VolumeX } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { formatCurrency, cn } from "@/lib/utils";
-import { useLendasStore } from "@/store/lendas-store";
 
-type AdminView = "dashboard" | "cardapio" | "categorias" | "mesas" | "equipe" | "pedidos" | "musica" | "financeiro" | "configuracoes";
+type AdminView = "cardapio" | "categorias" | "qrcodes" | "equipe" | "musica" | "consumer";
 type Product = {
   id: string;
   name: string;
@@ -19,6 +18,7 @@ type Product = {
   category: string;
   price: number;
   imageUrl?: string;
+  consumerCode?: string | null;
 };
 type TableRow = {
   id: string;
@@ -35,28 +35,9 @@ type Waiter = {
   name: string;
   tables: string;
 };
-type FinanceSummary = {
-  from: string;
-  to: string;
-  revenueCents: number;
-  expensesCents: number;
-  netCents: number;
-  deliveredOrders: number;
-};
-type Expense = {
-  id: string;
-  description: string;
-  category: string | null;
-  amountCents: number;
-  occurredAt: string;
-  createdAt: string;
-};
 
 export function AdminPanel() {
-  const { orders, waiterCalls, billRequests } = useLendasStore();
-  const [activeView, setActiveView] = useState<AdminView>("dashboard");
-  const activeOrders = orders.filter((order) => order.status !== "Entregue").length;
-  const revenue = orders.reduce((total, order) => total + order.total, 0);
+  const [activeView, setActiveView] = useState<AdminView>("cardapio");
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -79,15 +60,12 @@ export function AdminPanel() {
             </div>
             <nav className="space-y-1 text-sm text-zinc-400">
               {[
-                [BarChart3, "Dashboard", "dashboard"],
-                [Boxes, "Cardapio", "cardapio"],
+                [Boxes, "Cardapio e Produtos", "cardapio"],
                 [Grid2X2, "Categorias", "categorias"],
-                [Users, "Mesas", "mesas"],
+                [Printer, "QR Codes das Mesas", "qrcodes"],
                 [UserPlus, "Garcons & Equipe", "equipe"],
-                [ReceiptText, "Pedidos", "pedidos"],
-                [WalletCards, "Financeiro", "financeiro"],
-                [Music2, "Musica", "musica"],
-                [Settings, "Configuracoes", "configuracoes"]
+                [Music2, "Pedidos de Musica", "musica"],
+                [WalletCards, "Consumer (PDV)", "consumer"]
               ].map(([Icon, label, view]) => (
                 <button
                   key={label as string}
@@ -116,35 +94,23 @@ export function AdminPanel() {
               <h1 className="text-2xl font-semibold">
                 {activeView === "cardapio" && "Cardapio e produtos"}
                 {activeView === "categorias" && "Gestao de categorias"}
+                {activeView === "qrcodes" && "Placas e QR Codes das Mesas"}
                 {activeView === "equipe" && "Cadastrar Garcons & Equipe"}
-                {activeView === "pedidos" && "Historico de pedidos"}
-                {activeView === "configuracoes" && "Configuracoes do restaurante"}
-                {activeView !== "cardapio" && activeView !== "categorias" && activeView !== "equipe" && activeView !== "pedidos" && activeView !== "configuracoes" && "Gestao do restaurante"}
+                {activeView === "musica" && "Fila da Cabine de Musica"}
+                {activeView === "consumer" && "Integracao Consumer (PDV)"}
               </h1>
             </div>
             <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-100">Aberto agora</Badge>
           </div>
 
-          {activeView === "dashboard" && (
-            <>
-              <div className="grid gap-3 md:grid-cols-4">
-                <Metric icon={ShoppingBag} label="Pedidos ativos" value={String(activeOrders)} />
-                <Metric icon={WalletCards} label="Faturamento hoje" value={formatCurrency(revenue)} />
-                <Metric icon={Users} label="Chamados" value={String(waiterCalls)} />
-                <Metric icon={ReceiptText} label="Contas solicitadas" value={String(billRequests)} />
-              </div>
-              <TablesAndQr />
-            </>
-          )}
+          <WaiterCallsHeader />
 
           {activeView === "cardapio" && <MenuManager />}
-          {activeView === "mesas" && <TablesAndQr />}
-          {activeView === "equipe" && <SettingsManager />}
-          {activeView === "musica" && <MusicRequestsManager />}
-          {activeView === "financeiro" && <FinanceManager />}
           {activeView === "categorias" && <CategoriesManager />}
-          {activeView === "pedidos" && <OrdersHistoryManager />}
-          {activeView === "configuracoes" && <SettingsManager />}
+          {activeView === "qrcodes" && <TablesAndQr />}
+          {activeView === "equipe" && <WaitersManager />}
+          {activeView === "musica" && <MusicRequestsManager />}
+          {activeView === "consumer" && <ConsumerIntegrationManager />}
         </section>
       </div>
     </main>
@@ -159,6 +125,8 @@ function TablesAndQr() {
   const [appBaseUrl] = useState(() => (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, ""));
   const [brandHandle] = useState(() => process.env.NEXT_PUBLIC_BRAND_HANDLE || "@atlassoftware_");
   const [marketingCopy] = useState(() => process.env.NEXT_PUBLIC_MARKETING_COPY || "Peça direto no QR e viva a experiência LENDAS.");
+
+  const [statusFilter, setStatusFilter] = useState<"all" | "available" | "occupied" | "bill">("all");
 
   const selectedTableUrl = useMemo(() => {
     if (!appBaseUrl) return `https://lendasbar.vercel.app/mesa/${selectedTable}`;
@@ -416,49 +384,154 @@ function TablesAndQr() {
     };
   }
 
+  const filteredTables = useMemo(() => {
+    return displayTables.filter((table) => {
+      if (statusFilter === "available") return !table.sessionId;
+      if (statusFilter === "occupied") return Boolean(table.sessionId && table.status !== "WAITING_BILL");
+      if (statusFilter === "bill") return table.status === "WAITING_BILL";
+      return true;
+    });
+  }, [displayTables, statusFilter]);
+
+  const occupiedCount = displayTables.filter((t) => t.sessionId).length;
+  const availableCount = displayTables.length - occupiedCount;
+  const billCount = displayTables.filter((t) => t.status === "WAITING_BILL").length;
+
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
       <Card className="border-white/10 bg-black/45 p-4">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
           <div>
-            <h2 className="text-lg font-semibold">Gerenciamento de Mesas ({displayTables.length})</h2>
-            <p className="text-xs text-zinc-500">Gerencie atribuições de garçons e imprima as placas das mesas.</p>
+            <h2 className="text-lg font-semibold">Painel de Mesas — Estilo Consumer ({displayTables.length})</h2>
+            <p className="text-xs text-zinc-500">Visão em bloco com identificação do garçom, valor e status do caixa.</p>
           </div>
           <Button variant="outline" size="sm" onClick={printAllQrCodes} className="gap-1.5 border-white/20 text-xs font-semibold hover:bg-white/10">
             <Printer className="h-4 w-4 text-red-400" />
-            Imprimir TODOS os QR Codes ({displayTables.length} Mesas)
+            Imprimir Todos QR Codes
           </Button>
         </div>
-        <div className="space-y-2">
-          {displayTables.map((table) => (
-            <div key={table.id} className="grid gap-3 rounded-md border border-white/10 bg-white/[0.035] px-3 py-3 text-sm md:grid-cols-[1fr_180px_auto_auto] md:items-center">
-              <button className="text-left" onClick={() => setSelectedTable(table.qrToken)}>
-                <span className="font-semibold">Mesa {table.number.toString().padStart(2, "0")}</span>
-                <p className="text-xs text-zinc-500">
-                  {table.guests.length ? `${table.guests.join(", ")} · ${formatCurrency(table.total / 100)}` : "Sem sessao ativa"}
-                </p>
-                <p className="text-xs text-zinc-600">{table.waiter ? `Garcom: ${table.waiter.name}` : "Sem garcom atribuido"}</p>
-              </button>
-              <select
-                value={table.waiter?.id ?? ""}
-                onChange={(event) => assignWaiter(table.qrToken, event.target.value)}
-                className="h-9 rounded-md border border-white/10 bg-zinc-950 px-2 text-xs text-zinc-100 outline-none focus:border-red-500"
+
+        {/* Filtros de Status (Estilo Caixa Consumer) */}
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <Button
+            size="sm"
+            variant={statusFilter === "all" ? "default" : "secondary"}
+            onClick={() => setStatusFilter("all")}
+            className="text-xs h-8"
+          >
+            Todas ({displayTables.length})
+          </Button>
+          <Button
+            size="sm"
+            variant={statusFilter === "available" ? "default" : "secondary"}
+            onClick={() => setStatusFilter("available")}
+            className="text-xs h-8 border border-emerald-500/40 text-emerald-300"
+          >
+            Livres ({availableCount})
+          </Button>
+          <Button
+            size="sm"
+            variant={statusFilter === "occupied" ? "default" : "secondary"}
+            onClick={() => setStatusFilter("occupied")}
+            className="text-xs h-8 border border-red-500/40 text-red-300"
+          >
+            Ocupadas ({occupiedCount})
+          </Button>
+          <Button
+            size="sm"
+            variant={statusFilter === "bill" ? "default" : "secondary"}
+            onClick={() => setStatusFilter("bill")}
+            className="text-xs h-8 border border-amber-500/40 text-amber-300"
+          >
+            Pedindo Conta ({billCount})
+          </Button>
+        </div>
+
+        {/* Grid de Mesas Estilo Consumer */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+          {filteredTables.map((table) => {
+            const isOccupied = Boolean(table.sessionId);
+            const isWaitingBill = table.status === "WAITING_BILL";
+
+            return (
+              <div
+                key={table.id}
+                onClick={() => setSelectedTable(table.qrToken)}
+                className={cn(
+                  "relative flex flex-col justify-between rounded-xl border p-3.5 transition cursor-pointer select-none min-h-[145px]",
+                  isWaitingBill
+                    ? "border-amber-500/80 bg-amber-950/40 text-amber-100 shadow-[0_0_20px_rgba(245,158,11,0.25)] animate-pulse"
+                    : isOccupied
+                    ? "border-red-500/60 bg-gradient-to-b from-red-950/40 to-zinc-950 text-white shadow-md hover:border-red-400"
+                    : "border-emerald-500/30 bg-emerald-950/20 text-zinc-300 hover:border-emerald-500/60"
+                )}
               >
-                <option value="">Sem garcom</option>
-                {waiters.map((waiter) => (
-                  <option key={waiter.id} value={waiter.id}>
-                    {waiter.name}
-                  </option>
-                ))}
-              </select>
-              <span className={cn("text-xs", table.sessionId ? "text-amber-300" : "text-emerald-300")}>
-                {table.sessionId ? "Aberta" : "Disponivel"}
-              </span>
-              <Button size="sm" variant="secondary" disabled={!table.sessionId} onClick={() => closeTable(table.qrToken)}>
-                Fechar conta
-              </Button>
-            </div>
-          ))}
+                <div>
+                  <div className="flex items-center justify-between border-b border-white/10 pb-2 mb-2">
+                    <span className="font-extrabold text-base tracking-wide">Mesa {table.number.toString().padStart(2, "0")}</span>
+                    <Badge
+                      className={cn(
+                        "text-[10px] px-1.5 py-0.5 font-bold uppercase",
+                        isWaitingBill
+                          ? "bg-amber-500 text-black"
+                          : isOccupied
+                          ? "bg-red-500 text-white"
+                          : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                      )}
+                    >
+                      {isWaitingBill ? "Pedindo Conta" : isOccupied ? "Ocupada" : "Livre"}
+                    </Badge>
+                  </div>
+
+                  {/* Seletor do Garçom com destaque */}
+                  <div className="mb-2">
+                    <select
+                      value={table.waiter?.id ?? ""}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(event) => assignWaiter(table.qrToken, event.target.value)}
+                      className="w-full text-[11px] h-7 rounded bg-black/70 border border-white/15 px-1.5 text-zinc-200 focus:outline-none focus:border-red-500 truncate"
+                    >
+                      <option value="">👤 Sem garçom</option>
+                      {waiters.map((w) => (
+                        <option key={w.id} value={w.id}>
+                          👤 {w.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Valor Total & Clientes */}
+                  {isOccupied ? (
+                    <div className="space-y-1">
+                      <p className="text-xs text-zinc-300 truncate font-medium">
+                        👥 {table.guests.length ? table.guests.join(", ") : "Clientes na mesa"}
+                      </p>
+                      <p className="text-lg font-black text-emerald-400">
+                        {formatCurrency(table.total / 100)}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-emerald-400/80 font-medium">Livre / QR Ativo</p>
+                  )}
+                </div>
+
+                {/* Ação do Caixa */}
+                {isOccupied && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      closeTable(table.qrToken);
+                    }}
+                    className="mt-3 w-full h-7 text-xs bg-red-950/80 hover:bg-red-900 border border-red-500/40 text-red-200 font-semibold"
+                  >
+                    Fechar Mesa
+                  </Button>
+                )}
+              </div>
+            );
+          })}
         </div>
       </Card>
 
@@ -581,185 +654,116 @@ function MusicRequestsManager() {
   );
 }
 
-function FinanceManager() {
-  const [period, setPeriod] = useState<"day" | "month">("day");
-  const [anchorDate, setAnchorDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [summary, setSummary] = useState<FinanceSummary | null>(null);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    description: "",
-    category: "",
-    amount: "",
-    occurredAt: new Date().toISOString().slice(0, 10)
-  });
+function ConsumerIntegrationManager() {
+  const [origin] = useState(() => (typeof window !== "undefined" ? window.location.origin : ""));
+  const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
-  const range = useMemo(() => {
-    const [year, month, day] = anchorDate.split("-").map(Number);
-    const date = new Date(year, (month || 1) - 1, day || 1);
+  const pollingUrl = `${origin}/api/integrations/consumer/events`;
+  const orderDetailsUrl = `${origin}/api/integrations/consumer/orders/{id}`;
+  const webhookUrl = `${origin}/api/integrations/consumer/webhook`;
 
-    const start =
-      period === "month"
-        ? new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0)
-        : new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
-    const end =
-      period === "month"
-        ? new Date(date.getFullYear(), date.getMonth() + 1, 1, 0, 0, 0, 0)
-        : new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1, 0, 0, 0, 0);
+  function copyToClipboard(text: string, label: string) {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedUrl(label);
+    setTimeout(() => setCopiedUrl(null), 2000);
+  }
 
-    return {
-      from: start.toISOString(),
-      to: end.toISOString()
-    };
-  }, [anchorDate, period]);
+  async function handleTestConnection() {
+    setTesting(true);
+    setTestResult(null);
 
-  const loadFinance = useCallback(async () => {
-    const params = new URLSearchParams(range);
-    const [summaryResponse, expensesResponse] = await Promise.all([
-      fetch(`/api/finance/summary?${params.toString()}`, { cache: "no-store" }),
-      fetch(`/api/expenses?${params.toString()}`, { cache: "no-store" })
-    ]);
-
-    if (summaryResponse.ok) {
-      const data = (await summaryResponse.json()) as FinanceSummary;
-      setSummary(data);
+    try {
+      const res = await fetch("/api/integrations/consumer/events", { cache: "no-store" });
+      if (res.ok) {
+        setTestResult({
+          success: true,
+          message: "Conexão com a API de Parceiros do Consumer testada com sucesso (Código 200 OK)."
+        });
+      } else {
+        setTestResult({
+          success: false,
+          message: `Falha ao testar API: HTTP ${res.status}`
+        });
+      }
+    } catch {
+      setTestResult({
+        success: false,
+        message: "Erro de rede ao testar os endpoints da integração."
+      });
+    } finally {
+      setTesting(false);
     }
-
-    if (expensesResponse.ok) {
-      const data = (await expensesResponse.json()) as { expenses?: Expense[] };
-      setExpenses(data.expenses ?? []);
-    }
-
-    setLoading(false);
-  }, [range]);
-
-  useEffect(() => {
-    window.setTimeout(() => {
-      setLoading(true);
-      loadFinance();
-    }, 0);
-  }, [loadFinance]);
-
-  async function submitExpense(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const amount = Number(form.amount.replace(",", "."));
-    if (!form.description.trim() || !Number.isFinite(amount) || amount <= 0) return;
-
-    setSaving(true);
-    const response = await fetch("/api/expenses", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        description: form.description.trim(),
-        category: form.category.trim() || null,
-        amountCents: Math.round(amount * 100),
-        occurredAt: `${form.occurredAt}T12:00:00.000Z`
-      })
-    });
-
-    setSaving(false);
-    if (!response.ok) return;
-
-    setForm((current) => ({
-      ...current,
-      description: "",
-      amount: ""
-    }));
-    await loadFinance();
   }
 
   return (
     <div className="space-y-5">
-      <Card className="border-white/10 bg-black/45 p-4">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="flex gap-2">
-            <Button variant={period === "day" ? "default" : "secondary"} onClick={() => setPeriod("day")}>
-              Dia
-            </Button>
-            <Button variant={period === "month" ? "default" : "secondary"} onClick={() => setPeriod("month")}>
-              Mes
-            </Button>
-          </div>
+      <Card className="border-white/10 bg-black/45 p-5">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="mb-1 text-xs text-zinc-500">Data de referencia</p>
-            <Input type="date" value={anchorDate} onChange={(event) => setAnchorDate(event.target.value)} />
+            <Badge className="mb-2 border-emerald-500/30 bg-emerald-500/10 text-emerald-300">
+              API Oficial de Parceiros Consumer (Homologado)
+            </Badge>
+            <h2 className="text-xl font-bold">Integração Programa Consumer (PDV)</h2>
+            <p className="mt-1 text-sm text-zinc-400">
+              Protocolo B2B oficial com suporte a Polling de Eventos, Detalhes de Pedido (INDOOR / Mesa) e Webhook.
+            </p>
           </div>
+          <Button variant="secondary" onClick={handleTestConnection} disabled={testing} className="font-bold text-xs gap-2">
+            <Check className="h-4 w-4 text-emerald-400" />
+            {testing ? "Testando..." : "Testar Conexão"}
+          </Button>
         </div>
+
+        {testResult && (
+          <div className={cn("mt-4 rounded-lg border p-3 text-xs font-medium", testResult.success ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-red-500/30 bg-red-500/10 text-red-200")}>
+            {testResult.message}
+          </div>
+        )}
       </Card>
 
-      <div className="grid gap-3 md:grid-cols-4">
-        <Metric icon={WalletCards} label="Faturamento" value={formatCurrency((summary?.revenueCents ?? 0) / 100)} />
-        <Metric icon={ReceiptText} label="Gastos" value={formatCurrency((summary?.expensesCents ?? 0) / 100)} />
-        <Metric icon={BarChart3} label="Liquido" value={formatCurrency((summary?.netCents ?? 0) / 100)} />
-        <Metric icon={ShoppingBag} label="Pedidos entregues" value={String(summary?.deliveredOrders ?? 0)} />
-      </div>
-
-      <div className="grid gap-5 xl:grid-cols-[390px_1fr]">
-        <Card className="border-white/10 bg-black/45 p-4">
-          <h2 className="text-lg font-semibold">Lancar gasto</h2>
-          <p className="mt-1 text-sm text-zinc-500">Registre despesas operacionais para acompanhar o lucro real.</p>
-          <form className="mt-4 space-y-3" onSubmit={submitExpense}>
-            <Field label="Descricao">
-              <Input
-                value={form.description}
-                onChange={(event) => setForm({ ...form, description: event.target.value })}
-                placeholder="Ex.: compra de insumos"
-              />
-            </Field>
-            <Field label="Categoria">
-              <Input
-                value={form.category}
-                onChange={(event) => setForm({ ...form, category: event.target.value })}
-                placeholder="Ex.: estoque, energia, marketing"
-              />
-            </Field>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Valor (R$)">
-                <Input
-                  value={form.amount}
-                  onChange={(event) => setForm({ ...form, amount: event.target.value })}
-                  placeholder="120,50"
-                />
-              </Field>
-              <Field label="Data">
-                <Input
-                  type="date"
-                  value={form.occurredAt}
-                  onChange={(event) => setForm({ ...form, occurredAt: event.target.value })}
-                />
-              </Field>
-            </div>
-            <Button className="w-full" type="submit" disabled={saving}>
-              {saving ? "Salvando..." : "Salvar gasto"}
+      <div className="grid gap-5 md:grid-cols-3">
+        <Card className="border-white/10 bg-black/45 p-4 space-y-3">
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-red-300">1. Polling de Eventos (GET)</span>
+            <h3 className="text-sm font-semibold mt-0.5">Consulta de Eventos</h3>
+            <p className="text-xs text-zinc-400 mt-1">O Consumer consulta esta URL a cada poucos segundos para buscar novos pedidos.</p>
+          </div>
+          <div className="flex items-center gap-2 rounded-md border border-white/10 bg-zinc-950 p-2 text-xs font-mono text-zinc-300">
+            <span className="truncate flex-1">{pollingUrl}</span>
+            <Button size="sm" variant="secondary" onClick={() => copyToClipboard(pollingUrl, "polling")} className="h-7 px-2">
+              {copiedUrl === "polling" ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
             </Button>
-          </form>
+          </div>
         </Card>
 
-        <Card className="border-white/10 bg-black/45 p-4">
-          <h2 className="text-lg font-semibold">Gastos do periodo</h2>
-          <p className="mt-1 text-sm text-zinc-500">{period === "day" ? "Visao diaria" : "Visao mensal"} do caixa.</p>
+        <Card className="border-white/10 bg-black/45 p-4 space-y-3">
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-red-300">2. Detalhes do Pedido (GET)</span>
+            <h3 className="text-sm font-semibold mt-0.5">Consulta de Detalhes</h3>
+            <p className="text-xs text-zinc-400 mt-1">URL usada pelo Consumer para puxar o JSON com itens, mesa e cliente.</p>
+          </div>
+          <div className="flex items-center gap-2 rounded-md border border-white/10 bg-zinc-950 p-2 text-xs font-mono text-zinc-300">
+            <span className="truncate flex-1">{orderDetailsUrl}</span>
+            <Button size="sm" variant="secondary" onClick={() => copyToClipboard(orderDetailsUrl, "details")} className="h-7 px-2">
+              {copiedUrl === "details" ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+            </Button>
+          </div>
+        </Card>
 
-          {loading && <p className="mt-4 text-sm text-zinc-500">Carregando dados financeiros...</p>}
-
-          {!loading && expenses.length === 0 && (
-            <p className="mt-4 text-sm text-zinc-500">Nenhum gasto registrado neste periodo.</p>
-          )}
-
-          <div className="mt-4 space-y-2">
-            {expenses.map((expense) => (
-              <div key={expense.id} className="rounded-md border border-white/10 bg-white/[0.035] px-3 py-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold">{expense.description}</p>
-                    <p className="text-xs text-zinc-500">
-                      {expense.category || "Sem categoria"} · {new Date(expense.occurredAt).toLocaleDateString("pt-BR")}
-                    </p>
-                  </div>
-                  <p className="text-sm font-semibold text-red-300">-{formatCurrency(expense.amountCents / 100)}</p>
-                </div>
-              </div>
-            ))}
+        <Card className="border-white/10 bg-black/45 p-4 space-y-3">
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-red-300">3. Webhook Callback (POST)</span>
+            <h3 className="text-sm font-semibold mt-0.5">Atualização de Status</h3>
+            <p className="text-xs text-zinc-400 mt-1">O Consumer avisa esta URL quando o pedido for aceito, em preparo ou pronto.</p>
+          </div>
+          <div className="flex items-center gap-2 rounded-md border border-white/10 bg-zinc-950 p-2 text-xs font-mono text-zinc-300">
+            <span className="truncate flex-1">{webhookUrl}</span>
+            <Button size="sm" variant="secondary" onClick={() => copyToClipboard(webhookUrl, "webhook")} className="h-7 px-2">
+              {copiedUrl === "webhook" ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+            </Button>
           </div>
         </Card>
       </div>
@@ -778,7 +782,8 @@ function MenuManager() {
     description: "",
     category: "Hamburgueres",
     price: "",
-    imageUrl: ""
+    imageUrl: "",
+    consumerCode: ""
   });
 
   async function loadProducts() {
@@ -806,7 +811,7 @@ function MenuManager() {
     if (!response.ok) return;
 
     setEditingId(null);
-    setForm({ name: "", description: "", category: form.category, price: "", imageUrl: "" });
+    setForm({ name: "", description: "", category: form.category, price: "", imageUrl: "", consumerCode: "" });
     await loadProducts();
   }
 
@@ -838,7 +843,8 @@ function MenuManager() {
       description: product.desc,
       category: product.category,
       price: String(product.price).replace(".", ","),
-      imageUrl: product.imageUrl ?? ""
+      imageUrl: product.imageUrl ?? "",
+      consumerCode: product.consumerCode ?? ""
     });
   }
 
@@ -886,6 +892,9 @@ function MenuManager() {
               <Input value={form.price} onChange={(event) => setForm({ ...form, price: event.target.value })} placeholder="29,90" />
             </Field>
           </div>
+          <Field label="Codigo Consumer (ID PDV)">
+            <Input value={form.consumerCode} onChange={(event) => setForm({ ...form, consumerCode: event.target.value })} placeholder="Ex: 104 ou BEB-01" />
+          </Field>
           <Field label="Foto do Produto">
             <div className="space-y-2">
               <Input value={form.imageUrl} onChange={(event) => setForm({ ...form, imageUrl: event.target.value })} placeholder="https://... ou faça upload" />
@@ -1050,308 +1059,6 @@ function CategoriesManager() {
   );
 }
 
-type OrderHistoryItem = {
-  id: string;
-  table: string;
-  tableNumber: number;
-  customerName: string;
-  status: string;
-  statusLabel: string;
-  items: string[];
-  total: number;
-  createdAt: string;
-};
-
-function OrdersHistoryManager() {
-  const [orders, setOrders] = useState<OrderHistoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
-  const [tableFilter, setTableFilter] = useState("");
-
-  const loadHistory = useCallback(async () => {
-    setLoading(true);
-    const params = new URLSearchParams();
-    if (statusFilter !== "ALL") params.set("status", statusFilter);
-    if (tableFilter) params.set("table", tableFilter);
-    if (search.trim()) params.set("q", search.trim());
-
-    const response = await fetch(`/api/orders/history?${params.toString()}`, { cache: "no-store" });
-    if (response.ok) {
-      const data = (await response.json()) as { orders?: OrderHistoryItem[] };
-      setOrders(data.orders ?? []);
-    }
-    setLoading(false);
-  }, [search, statusFilter, tableFilter]);
-
-  useEffect(() => {
-    window.setTimeout(loadHistory, 0);
-  }, [loadHistory]);
-
-  return (
-    <div className="space-y-4">
-      <Card className="border-white/10 bg-black/45 p-4">
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div>
-            <p className="mb-1 text-xs text-zinc-400">Buscar</p>
-            <div className="flex items-center gap-2 rounded-md border border-white/10 bg-zinc-950 px-3 py-1">
-              <Search className="h-4 w-4 text-zinc-500" />
-              <Input
-                className="border-0 bg-transparent px-0 text-xs focus:ring-0"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Cliente, ID ou item..."
-              />
-            </div>
-          </div>
-          <div>
-            <p className="mb-1 text-xs text-zinc-400">Filtrar por Status</p>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-9 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-xs text-zinc-100 outline-none"
-            >
-              <option value="ALL">Todos os status</option>
-              <option value="PENDING">Pendente</option>
-              <option value="CONFIRMED">Confirmado</option>
-              <option value="PREPARING">Em preparo</option>
-              <option value="READY">Pronto</option>
-              <option value="DELIVERED">Entregue</option>
-              <option value="CANCELLED">Cancelado</option>
-            </select>
-          </div>
-          <div>
-            <p className="mb-1 text-xs text-zinc-400">Número da Mesa</p>
-            <Input
-              value={tableFilter}
-              onChange={(e) => setTableFilter(e.target.value)}
-              placeholder="Ex.: 12"
-            />
-          </div>
-        </div>
-      </Card>
-
-      <Card className="border-white/10 bg-black/45 p-4">
-        <h2 className="text-lg font-semibold mb-4">Registro de Pedidos ({orders.length})</h2>
-
-        {loading && <p className="text-sm text-zinc-500">Buscando histórico de pedidos...</p>}
-
-        {!loading && orders.length === 0 && (
-          <p className="text-sm text-zinc-500">Nenhum pedido encontrado para os filtros selecionados.</p>
-        )}
-
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-          {orders.map((o) => (
-            <div key={o.id} className="rounded-lg border border-white/10 bg-white/[0.035] p-3 text-sm">
-              <div className="flex items-center justify-between border-b border-white/10 pb-2 mb-2">
-                <div>
-                  <span className="font-semibold text-red-300">{o.table}</span>
-                  <p className="text-xs text-zinc-400">{o.customerName}</p>
-                </div>
-                <Badge className="text-xs">{o.statusLabel}</Badge>
-              </div>
-              <div className="space-y-1 text-xs text-zinc-300 mb-3">
-                {o.items.map((item, i) => (
-                  <p key={`${o.id}-${i}`}>{item}</p>
-                ))}
-              </div>
-              <div className="flex items-center justify-between text-xs text-zinc-500 border-t border-white/10 pt-2">
-                <span>{new Date(o.createdAt).toLocaleString("pt-BR")}</span>
-                <span className="font-semibold text-white">{formatCurrency(o.total)}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Card>
-    </div>
-  );
-}
-
-type StaffUser = {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-};
-
-function SettingsManager() {
-  const [settings, setSettings] = useState({
-    name: "LENDAS 2018",
-    logoUrl: "/lendas-logo.png",
-    accent: "#d71920",
-    businessHours: "18:00 - 02:00",
-    phone: "(86) 99999-9999"
-  });
-  const [savingSettings, setSavingSettings] = useState(false);
-  const [users, setUsers] = useState<StaffUser[]>([]);
-  const [newUser, setNewUser] = useState({ name: "", email: "", role: "WAITER", password: "" });
-  const [addingUser, setAddingUser] = useState(false);
-  const [userFeedback, setUserFeedback] = useState<string | null>(null);
-
-  const loadData = useCallback(async () => {
-    const [settingsRes, usersRes] = await Promise.all([
-      fetch("/api/restaurant/settings", { cache: "no-store" }),
-      fetch("/api/users", { cache: "no-store" })
-    ]);
-
-    if (settingsRes.ok) {
-      const data = await settingsRes.json();
-      if (data.settings) setSettings(data.settings);
-    }
-
-    if (usersRes.ok) {
-      const data = await usersRes.json();
-      if (data.users) setUsers(data.users);
-    }
-  }, []);
-
-  useEffect(() => {
-    window.setTimeout(loadData, 0);
-  }, [loadData]);
-
-  async function handleSaveSettings(e: FormEvent) {
-    e.preventDefault();
-    setSavingSettings(true);
-    await fetch("/api/restaurant/settings", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(settings)
-    });
-    setSavingSettings(false);
-  }
-
-  async function handleCreateUser(e: FormEvent) {
-    e.preventDefault();
-    if (!newUser.name.trim() || !newUser.email.trim() || !newUser.password) return;
-    setAddingUser(true);
-    setUserFeedback(null);
-
-    const res = await fetch("/api/users", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(newUser)
-    });
-
-    setAddingUser(false);
-    if (res.ok) {
-      setNewUser({ name: "", email: "", role: "WAITER", password: "" });
-      setUserFeedback("Membro cadastrado com sucesso!");
-      await loadData();
-    } else {
-      setUserFeedback("Erro ao cadastrar membro.");
-    }
-  }
-
-  async function handleDeleteUser(id: string) {
-    await fetch(`/api/users/${id}`, { method: "DELETE" });
-    await loadData();
-  }
-
-  const [copiedUserId, setCopiedUserId] = useState<string | null>(null);
-
-  function handleCopyUserLink(user: { id: string; name: string; role: string }) {
-    if (typeof window === "undefined") return;
-    let waiterParam = user.id;
-    if (user.name.toLowerCase().includes("joao")) waiterParam = "waiter_joao";
-    else if (user.name.toLowerCase().includes("maria")) waiterParam = "waiter_maria";
-    else if (user.name.toLowerCase().includes("pedro")) waiterParam = "waiter_pedro";
-
-    const directUrl = `${window.location.origin}/waiter?waiterId=${waiterParam}`;
-    navigator.clipboard.writeText(directUrl).then(() => {
-      setCopiedUserId(user.id);
-      setTimeout(() => setCopiedUserId(null), 2000);
-    });
-  }
-
-  return (
-    <div className="grid gap-5 xl:grid-cols-[1fr_1fr]">
-      <Card className="border-white/10 bg-black/45 p-4">
-        <h2 className="text-lg font-semibold mb-1">Dados do Restaurante</h2>
-        <p className="text-xs text-zinc-500 mb-4">Personalize o nome, tema e comunicacao visual.</p>
-        <form onSubmit={handleSaveSettings} className="space-y-3">
-          <Field label="Nome do Estabelecimento">
-            <Input value={settings.name} onChange={(e) => setSettings({ ...settings, name: e.target.value })} />
-          </Field>
-          <Field label="URL da Logo">
-            <Input value={settings.logoUrl} onChange={(e) => setSettings({ ...settings, logoUrl: e.target.value })} />
-          </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Cor de Destaque">
-              <Input value={settings.accent} onChange={(e) => setSettings({ ...settings, accent: e.target.value })} placeholder="#d71920" />
-            </Field>
-            <Field label="Horario de Funcionamento">
-              <Input value={settings.businessHours} onChange={(e) => setSettings({ ...settings, businessHours: e.target.value })} placeholder="18:00 - 02:00" />
-            </Field>
-          </div>
-          <Button className="w-full" type="submit" disabled={savingSettings}>
-            {savingSettings ? "Salvando..." : "Salvar Dados"}
-          </Button>
-        </form>
-      </Card>
-
-      <Card className="border-white/10 bg-black/45 p-4 space-y-4">
-        <div>
-          <h2 className="text-lg font-semibold mb-1">Equipe & Links de Acesso</h2>
-          <p className="text-xs text-zinc-500">Cadastre membros da equipe e copie os links diretos para cada garçom abrir no celular.</p>
-        </div>
-
-        <form onSubmit={handleCreateUser} className="space-y-3 rounded-lg border border-white/10 bg-white/[0.03] p-3">
-          <p className="text-xs font-semibold text-red-300 uppercase tracking-wider">Novo Membro</p>
-          <div className="grid grid-cols-2 gap-2">
-            <Input value={newUser.name} onChange={(e) => setNewUser({ ...newUser, name: e.target.value })} placeholder="Nome" />
-            <Input value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} placeholder="Email de login" />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <select
-              value={newUser.role}
-              onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
-              className="h-9 rounded-md border border-white/10 bg-zinc-950 px-2 text-xs text-zinc-100 outline-none"
-            >
-              <option value="WAITER">Garçom</option>
-              <option value="KITCHEN">Cozinha</option>
-              <option value="MANAGER">Gerente</option>
-              <option value="OWNER">Dono</option>
-            </select>
-            <Input type="password" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} placeholder="Senha inicial" />
-          </div>
-          <Button size="sm" className="w-full" type="submit" disabled={addingUser}>
-            {addingUser ? "Cadastrando..." : "Adicionar à Equipe"}
-          </Button>
-          {userFeedback && <p className="text-xs text-emerald-300 text-center">{userFeedback}</p>}
-        </form>
-
-        <div className="space-y-2">
-          <p className="text-xs font-semibold text-zinc-400">Membros e Links dos Garçons Cadastrados:</p>
-          {users.map((u) => (
-            <div key={u.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-white/10 bg-white/[0.025] px-3 py-2 text-xs">
-              <div>
-                <span className="font-semibold text-white">{u.name}</span>
-                <p className="text-zinc-500 text-[11px]">{u.email} · <Badge className="text-[10px] py-0 border border-white/20 text-zinc-300 bg-transparent">{u.role}</Badge></p>
-              </div>
-              <div className="flex items-center gap-1.5">
-                {u.role === "WAITER" && (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="h-7 text-[11px] gap-1 px-2"
-                    onClick={() => handleCopyUserLink(u)}
-                  >
-                    {copiedUserId === u.id ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
-                    {copiedUserId === u.id ? "Link Copiado!" : "Copiar Link do Garçom"}
-                  </Button>
-                )}
-                <Button size="icon" variant="ghost" className="h-7 w-7 text-zinc-500 hover:text-red-300" onClick={() => handleDeleteUser(u.id)}>
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Card>
-    </div>
-  );
-}
-
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block space-y-1.5">
@@ -1361,15 +1068,194 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function Metric({ icon: Icon, label, value }: { icon: typeof ShoppingBag; label: string; value: string }) {
+type ActiveCall = {
+  id: string;
+  table: string;
+  tableNumber: number;
+  customerName: string;
+  type: "WAITER" | "BILL";
+  status: string;
+  waiter: { id: string; name: string } | null;
+  minutes: number;
+};
+
+function WaiterCallsHeader() {
+  const [calls, setCalls] = useState<ActiveCall[]>([]);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const previousCallsCountRef = useRef(0);
+
+  const playChime = useCallback(() => {
+    try {
+      const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.5);
+    } catch {}
+  }, []);
+
+  const loadCalls = useCallback(async () => {
+    const res = await fetch("/api/waiter-calls", { cache: "no-store" });
+    if (!res.ok) return;
+    const data = (await res.json()) as { calls?: ActiveCall[] };
+    const activeCalls = data.calls ?? [];
+
+    if (activeCalls.length > previousCallsCountRef.current && soundEnabled) {
+      playChime();
+    }
+    previousCallsCountRef.current = activeCalls.length;
+    setCalls(activeCalls);
+  }, [playChime, soundEnabled]);
+
+  useEffect(() => {
+    window.setTimeout(loadCalls, 0);
+    const interval = window.setInterval(loadCalls, 4000);
+    return () => window.clearInterval(interval);
+  }, [loadCalls]);
+
+  async function handleResolve(id: string) {
+    await fetch(`/api/waiter-calls/${id}/resolve`, { method: "POST" });
+    await loadCalls();
+  }
+
+  if (calls.length === 0) return null;
+
   return (
-    <Card className="border-white/10 bg-white/[0.045] p-4">
-      <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-md bg-red-500/10 text-red-300">
-        <Icon className="h-4 w-4" />
+    <Card className="border-amber-500/50 bg-amber-950/40 p-4 text-amber-100 shadow-[0_0_30px_rgba(245,158,11,0.2)] animate-pulse">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-3 border-b border-amber-500/20 pb-2">
+        <div className="flex items-center gap-2">
+          <Bell className="h-5 w-5 text-amber-400 animate-bounce" />
+          <span className="font-bold text-sm tracking-wide">
+            CHAMADOS ATIVOS NO SALÃO ({calls.length})
+          </span>
+        </div>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => setSoundEnabled(!soundEnabled)}
+          className="text-xs gap-1 text-amber-300 hover:bg-amber-500/20"
+        >
+          {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+          {soundEnabled ? "Som Ativo" : "Mudo"}
+        </Button>
       </div>
-      <p className="text-xs text-zinc-500">{label}</p>
-      <p className="mt-1 text-2xl font-semibold">{value}</p>
+
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {calls.map((call) => (
+          <div
+            key={call.id}
+            className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-black/60 p-3 text-xs"
+          >
+            <div>
+              <div className="flex items-center gap-1.5 font-bold text-white text-sm">
+                <span>{call.table}</span>
+                <Badge className={cn("text-[10px] px-1.5", call.type === "BILL" ? "bg-amber-500 text-black" : "bg-red-600 text-white")}>
+                  {call.type === "BILL" ? "💳 Pedindo Conta" : "🚨 Chamar Garçom"}
+                </Badge>
+              </div>
+              <p className="text-zinc-400 mt-1">
+                Cliente: <strong className="text-zinc-200">{call.customerName}</strong>
+              </p>
+              <p className="text-amber-300/90 font-medium">
+                👤 Garçom: {call.waiter?.name || "Sem garçom atribuído"}
+              </p>
+            </div>
+            <Button
+              size="sm"
+              className="bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs h-8 px-2.5 shrink-0"
+              onClick={() => handleResolve(call.id)}
+            >
+              Atendido
+            </Button>
+          </div>
+        ))}
+      </div>
     </Card>
   );
 }
 
+function WaitersManager() {
+  const [waiters, setWaiters] = useState<Waiter[]>([]);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+
+  const loadWaiters = useCallback(async () => {
+    const res = await fetch("/api/waiters", { cache: "no-store" });
+    if (res.ok) {
+      const data = (await res.json()) as { waiters?: Waiter[] };
+      setWaiters(data.waiters ?? []);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.setTimeout(loadWaiters, 0);
+  }, [loadWaiters]);
+
+  async function handleAddWaiter(e: FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setLoading(true);
+    setFeedback(null);
+
+    const res = await fetch("/api/waiters", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email })
+    });
+
+    setLoading(false);
+    if (res.ok) {
+      setName("");
+      setEmail("");
+      setFeedback("Garçom cadastrado com sucesso!");
+      await loadWaiters();
+    } else {
+      setFeedback("Erro ao cadastrar garçom.");
+    }
+  }
+
+  return (
+    <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
+      <Card className="border-white/10 bg-black/45 p-4">
+        <h2 className="text-lg font-semibold mb-1">Cadastrar Garçom da Equipe</h2>
+        <p className="text-xs text-zinc-500 mb-4">Adicione garçons para vinculá-los às mesas do salão.</p>
+        <form onSubmit={handleAddWaiter} className="space-y-3">
+          <Field label="Nome do Garçom">
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: João Silva" />
+          </Field>
+          <Field label="Email ou Identificador (Opcional)">
+            <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Ex.: joao@lendas.local" />
+          </Field>
+          <Button className="w-full font-bold" type="submit" disabled={loading}>
+            {loading ? "Cadastrando..." : "Cadastrar Garçom"}
+          </Button>
+          {feedback && <p className="text-xs text-emerald-300 text-center font-medium">{feedback}</p>}
+        </form>
+      </Card>
+
+      <Card className="border-white/10 bg-black/45 p-4">
+        <h2 className="text-lg font-semibold mb-1">Equipe Cadastrada ({waiters.length})</h2>
+        <p className="text-xs text-zinc-500 mb-4">Garçons ativos no salão.</p>
+        <div className="space-y-2">
+          {waiters.map((w) => (
+            <div key={w.id} className="flex items-center justify-between rounded-md border border-white/10 bg-white/[0.03] p-3 text-xs">
+              <div>
+                <p className="font-bold text-white text-sm">👤 {w.name}</p>
+                <p className="text-zinc-400">Mesas: {w.tables}</p>
+              </div>
+              <Badge className="border-emerald-500/40 bg-emerald-500/10 text-emerald-300">Ativo</Badge>
+            </div>
+          ))}
+          {waiters.length === 0 && <p className="text-xs text-zinc-500">Nenhum garçom cadastrado ainda.</p>}
+        </div>
+      </Card>
+    </div>
+  );
+}

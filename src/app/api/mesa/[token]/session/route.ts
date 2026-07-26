@@ -3,6 +3,8 @@ import { getDb } from "@/lib/db";
 
 type TableSessionRecord = {
   id: string;
+  openedAt: Date;
+  status: string;
 };
 
 type TableRecord = {
@@ -19,6 +21,7 @@ type SessionRouteDb = {
   };
   tableSession: {
     create: (args: unknown) => Promise<TableSessionRecord>;
+    update: (args: unknown) => Promise<unknown>;
   };
   tableSessionUser: {
     upsert: (args: unknown) => Promise<{
@@ -58,8 +61,20 @@ export async function POST(
     return NextResponse.json({ error: "Table not found" }, { status: 404 });
   }
 
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+
+  let currentSession = table.currentSession;
+  if (currentSession && (currentSession.openedAt < startOfDay || currentSession.status === "CLOSED")) {
+    await db.tableSession.update({
+      where: { id: currentSession.id },
+      data: { status: "CLOSED", closedAt: new Date() }
+    });
+    currentSession = null;
+  }
+
   const session =
-    table.currentSession ??
+    currentSession ??
     (await db.tableSession.create({
       data: {
         restaurantId: table.restaurantId,
@@ -67,12 +82,10 @@ export async function POST(
       }
     }));
 
-  if (!table.currentSessionId) {
-    await db.table.update({
-      where: { id: table.id },
-      data: { currentSessionId: session.id, status: "OCCUPIED" }
-    });
-  }
+  await db.table.update({
+    where: { id: table.id },
+    data: { currentSessionId: session.id, status: "OCCUPIED" }
+  });
 
   const user = await db.tableSessionUser.upsert({
     where: {

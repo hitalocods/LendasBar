@@ -12,8 +12,7 @@ async function login(formData: FormData) {
 
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
-  const next = String(formData.get("next") ?? "/admin");
-  const safeNext = next === "/kitchen" || next === "/waiter" ? next : "/admin";
+  const safeNext = "/admin";
 
   if (!email || !password) {
     redirect(`/login?next=${encodeURIComponent(safeNext)}&error=1`);

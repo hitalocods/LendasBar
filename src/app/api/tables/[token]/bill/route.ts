@@ -10,11 +10,13 @@ type BillDb = {
       currentSession: null | {
         id: string;
         status: string;
+        openedAt: Date;
         users: Array<{ id: string; name: string; active: boolean }>;
         orders: Array<{
           id: string;
           customerName: string;
           status: string;
+          createdAt: Date;
           items: Array<{ productName: string; quantity: number; unitCents: number }>;
         }>;
       };
@@ -51,10 +53,29 @@ export async function GET(
 
   if (!table) return NextResponse.json({ error: "Table not found" }, { status: 404 });
 
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+
+  const currentSession = table.currentSession;
+  const isOldSession = currentSession && (new Date(currentSession.openedAt) < startOfDay || currentSession.status === "CLOSED");
+
+  if (!currentSession || isOldSession) {
+    return NextResponse.json({
+      table: table.number,
+      sessionId: null,
+      status: "CLOSED",
+      users: [],
+      groups: [],
+      total: 0
+    });
+  }
+
   const groups = new Map<string, Array<{ label: string; value: number }>>();
 
-  for (const order of table.currentSession?.orders ?? []) {
+  for (const order of currentSession.orders ?? []) {
     if (order.status === "CANCELLED") continue;
+    if (new Date(order.createdAt) < startOfDay) continue;
+
     const lines = groups.get(order.customerName) ?? [];
     for (const item of order.items) {
       lines.push({
@@ -73,9 +94,9 @@ export async function GET(
 
   return NextResponse.json({
     table: table.number,
-    sessionId: table.currentSession?.id ?? null,
-    status: table.currentSession?.status ?? "CLOSED",
-    users: table.currentSession?.users ?? [],
+    sessionId: currentSession.id,
+    status: currentSession.status,
+    users: currentSession.users ?? [],
     groups: grouped,
     total: grouped.reduce((sum, group) => sum + group.total, 0)
   });

@@ -10,6 +10,7 @@ type ProductRecord = {
   description: string;
   imageUrl: string | null;
   priceCents: number;
+  consumerCode: string | null;
   active: boolean;
   category: { name: string } | null;
 };
@@ -34,6 +35,7 @@ function toClientProduct(product: ProductRecord) {
     description: product.description,
     imageUrl: product.imageUrl,
     price: product.priceCents / 100,
+    consumerCode: product.consumerCode,
     category: product.category?.name ?? "Cardapio",
     active: product.active,
     tone: "from-red-700/30 to-zinc-950"
@@ -65,6 +67,7 @@ export async function PATCH(
     category?: string;
     price?: number;
     imageUrl?: string;
+    consumerCode?: string;
     active?: boolean;
   };
 
@@ -79,6 +82,7 @@ export async function PATCH(
   if (body.name !== undefined) data.name = body.name.trim();
   if (body.description !== undefined) data.description = body.description.trim();
   if (body.imageUrl !== undefined) data.imageUrl = body.imageUrl.trim() || null;
+  if (body.consumerCode !== undefined) data.consumerCode = body.consumerCode.trim() || null;
   if (body.price !== undefined) data.priceCents = Math.round(Number(body.price) * 100);
   if (body.active !== undefined) data.active = body.active;
 

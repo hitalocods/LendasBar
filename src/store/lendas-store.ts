@@ -82,10 +82,10 @@ const createInitialState = () => ({
     logoUrl: "/lendas-logo.png"
   },
   tableSession: {
-    id: "sess_mesa_12_active",
-    tableToken: "12",
-    tableNumber: "12",
-    status: "ACTIVE" as const,
+    id: "",
+    tableToken: "",
+    tableNumber: "",
+    status: "CLOSED" as const,
     activeUsers: []
   },
   cart: [],
