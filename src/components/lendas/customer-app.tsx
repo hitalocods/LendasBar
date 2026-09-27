@@ -30,6 +30,7 @@ type TableSessionUser = {
   id: string;
   name: string;
   clientId?: string;
+  isHost?: boolean;
 };
 
 export function CustomerApp({ tableId, initialName }: { tableId: string; initialName: string }) {
@@ -39,6 +40,7 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
   const [products, setProducts] = useState<Product[]>(menuItems);
   const [bill, setBill] = useState<TableBill | null>(null);
   const [sessionUser, setSessionUser] = useState<TableSessionUser | null>(null);
+  const [hostUser, setHostUser] = useState<{ id: string; name: string } | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [isSendingOrder, setIsSendingOrder] = useState(false);
@@ -119,10 +121,13 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
     if (!response.ok) return;
 
     const data = (await response.json()) as {
-      user?: TableSessionUser;
+      user?: TableSessionUser & { isHost?: boolean };
       users?: Array<{ id: string; name: string; active: boolean }>;
+      isHost?: boolean;
+      hostUser?: { id: string; name: string } | null;
     };
-    if (data.user) setSessionUser(data.user);
+    if (data.user) setSessionUser({ ...data.user, isHost: Boolean(data.isHost) });
+    if (data.hostUser) setHostUser(data.hostUser);
     if (data.users) {
       setBill((current) => ({ ...(current ?? { groups: [], total: 0, status: "ACTIVE" }), users: data.users }));
     }
@@ -234,6 +239,8 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
   }
 
 
+  const isHost = sessionUser?.isHost ?? (hostUser ? sessionUser?.name === hostUser.name : true);
+
   return (
     <main className="min-h-screen bg-background text-foreground" style={toThemeStyle({ ...restaurant, background: "#050505" })}>
       <div className="mx-auto min-h-screen max-w-[430px] bg-[#07080a] shadow-[0_0_80px_rgba(0,0,0,0.7)]">
@@ -254,6 +261,7 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
                 onCart={() => setStep("cart")}
                 onReset={resetCustomer}
                 cartCount={cartCount}
+                isHost={isHost}
               />
             )}
             {step === "cart" && (
@@ -266,6 +274,8 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
                 onSend={sendOrder}
                 isSending={isSendingOrder}
                 sendFeedback={orderSendFeedback}
+                isHost={isHost}
+                hostName={hostUser?.name}
               />
             )}
             {step === "sent" && <OrderSentScreen onBackToMenu={() => setStep("menu")} />}
@@ -350,7 +360,8 @@ function MenuScreen({
   onSelectProduct,
   onCart,
   onReset,
-  cartCount
+  cartCount,
+  isHost
 }: {
   tableId: string;
   customerName: string;
@@ -363,10 +374,18 @@ function MenuScreen({
   onCart: () => void;
   onReset: () => void;
   cartCount: number;
+  isHost?: boolean;
 }) {
   const [searchQuery, setSearchQuery] = useState("");
 
-  const popularProducts = useMemo(() => products.slice(0, 4), [products]);
+  const popularProducts = useMemo(() => {
+    const featured = products.filter((p) => (p as { isFeatured?: boolean }).isFeatured);
+    return featured.length > 0 ? featured : products.slice(0, 4);
+  }, [products]);
+
+  const promoProduct = useMemo(() => {
+    return products.find((p) => (p as { isPromo?: boolean }).isPromo);
+  }, [products]);
 
   const displayedProducts = useMemo(() => {
     if (!searchQuery.trim()) return products;
@@ -383,7 +402,14 @@ function MenuScreen({
       <header className="mb-4 flex items-center justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-red-400">Mesa {tableId} · {connectedUsers} {connectedUsers === 1 ? "pessoa" : "pessoas"}</p>
-          <h1 className="text-2xl font-bold">Olá, {customerName} 👋</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">Olá, {customerName} 👋</h1>
+            {isHost && (
+              <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-[10px] px-2 py-0.5 font-bold">
+                👑 Líder
+              </Badge>
+            )}
+          </div>
           <button onClick={onReset} className="mt-0.5 text-xs text-zinc-400 hover:text-red-300 underline">Trocar nome</button>
         </div>
         <div className="relative h-12 w-12 overflow-hidden rounded-full border border-red-500/40 shadow-lg">
@@ -404,18 +430,27 @@ function MenuScreen({
 
       {/* Banner de Promoção do Dia / Happy Hour */}
       {!searchQuery && (
-        <Card className="mb-5 overflow-hidden border-red-500/40 bg-gradient-to-r from-red-950/80 via-black to-zinc-950 p-4 text-white shadow-xl relative">
-          <div className="relative z-10 flex items-center justify-between">
+        <Card
+          onClick={() => promoProduct && onSelectProduct(promoProduct)}
+          className="mb-5 overflow-hidden border-red-500/40 bg-gradient-to-r from-red-950/80 via-black to-zinc-950 p-4 text-white shadow-xl relative cursor-pointer hover:border-red-400 transition"
+        >
+          <div className="relative z-10 flex items-center justify-between gap-3">
             <div>
               <Badge className="mb-1.5 border-amber-500/50 bg-amber-500/20 text-amber-300 font-extrabold text-[10px] uppercase tracking-wider">
                 🏷️ Promoção do Dia
               </Badge>
-              <h2 className="text-base font-bold text-white">Combo Happy Hour Lendas 🍻</h2>
-              <p className="text-xs text-zinc-300 mt-0.5">Pedindo 2 bebidas ou porções, ganhe desconto especial na comanda.</p>
+              <h2 className="text-base font-bold text-white">{promoProduct ? promoProduct.name : "Combo Happy Hour Lendas 🍻"}</h2>
+              <p className="text-xs text-zinc-300 mt-0.5">{promoProduct ? promoProduct.desc : "Pedindo bebidas ou porções, ganhe desconto especial na comanda."}</p>
             </div>
             <div className="text-right shrink-0">
-              <span className="text-xs text-zinc-400 line-through">R$ 35,00</span>
-              <p className="text-lg font-black text-emerald-400">R$ 29,90</p>
+              <span className="text-xs text-zinc-400 line-through">
+                {promoProduct ? formatCurrency(promoProduct.price) : "R$ 35,00"}
+              </span>
+              <p className="text-lg font-black text-emerald-400">
+                {promoProduct && (promoProduct as { promoPrice?: number | null }).promoPrice
+                  ? formatCurrency((promoProduct as { promoPrice?: number }).promoPrice!)
+                  : "R$ 29,90"}
+              </p>
             </div>
           </div>
         </Card>
@@ -578,7 +613,9 @@ function SharedCart({
   onRemove,
   onSend,
   isSending,
-  sendFeedback
+  sendFeedback,
+  isHost,
+  hostName
 }: {
   customerName: string;
   cart: Array<{ id: string; productName: string; customerName: string; quantity: number; unitPrice: number }>;
@@ -588,12 +625,13 @@ function SharedCart({
   onSend: () => void | Promise<void>;
   isSending: boolean;
   sendFeedback: string | null;
+  isHost?: boolean;
+  hostName?: string;
 }) {
   const grouped = cart.reduce<Record<string, typeof cart>>((groups, line) => {
     groups[line.customerName] = [...(groups[line.customerName] || []), line];
     return groups;
   }, {});
-  const customerHasItems = cart.some((line) => line.customerName === customerName);
   const realGroups = bill?.groups ?? [];
 
   return (
@@ -647,9 +685,16 @@ function SharedCart({
           <span>Total da mesa</span>
           <span className="text-xl font-semibold text-red-400">{formatCurrency(tableBillTotal)}</span>
         </div>
-        <Button className="mt-4 w-full" disabled={!customerHasItems || isSending} onClick={onSend}>
-          {isSending ? "Enviando..." : "Enviar meu pedido"}
-        </Button>
+
+        {isHost ? (
+          <Button className="mt-4 w-full font-bold" disabled={cart.length === 0 || isSending} onClick={onSend}>
+            {isSending ? "Enviando..." : "Enviar pedido da mesa"}
+          </Button>
+        ) : (
+          <Button className="mt-4 w-full font-medium bg-zinc-800 text-zinc-400 border border-white/10 opacity-90 cursor-not-allowed" disabled>
+            👑 Aguardando {hostName || "o Líder"} enviar o pedido
+          </Button>
+        )}
         {sendFeedback && (
           <p className="mt-3 text-center text-xs text-amber-200">{sendFeedback}</p>
         )}

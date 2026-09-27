@@ -6,6 +6,8 @@ export const dynamic = "force-dynamic";
 /**
  * Endpoint de Polling da API Oficial de Parceiros do Consumer
  * O software Consumer no caixa faz GET periódicos para checar novos eventos de pedidos.
+ *
+ * Após entregar os eventos, marca os pedidos como SYNCED para evitar reentrega duplicada.
  */
 export async function GET() {
   if (!process.env.DATABASE_URL) {
@@ -17,8 +19,10 @@ export async function GET() {
   }
 
   const db = getDb();
+
+  // Busca o restaurante sem hardcodar o slug — usa o primeiro restaurante ativo
+  // (para multi-tenant no futuro, passar o restaurantId via query param ou header)
   const restaurant = await db.restaurant.findFirst({
-    where: { slug: "lendas-2018" },
     select: { id: true }
   });
 
@@ -62,6 +66,16 @@ export async function GET() {
       code
     };
   });
+
+  // Após entregar os eventos, marca os pedidos como SYNCED para que não
+  // sejam reenviados no próximo poll do Consumer.
+  if (pendingOrders.length > 0) {
+    const deliveredIds = pendingOrders.map((o) => o.id);
+    await db.order.updateMany({
+      where: { id: { in: deliveredIds }, syncStatus: "PENDING" },
+      data: { syncStatus: "SYNCED", syncedAt: new Date() }
+    }).catch((err) => console.error("[Consumer Events] Failed to mark as SYNCED:", err));
+  }
 
   return NextResponse.json({
     items,

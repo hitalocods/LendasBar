@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { sendOrderToConsumer } from "@/lib/consumer-api";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { hasStaffAccess } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -87,6 +89,10 @@ const statusLabel: Record<string, string> = {
 };
 
 export async function GET() {
+  if (!(await hasStaffAccess("KITCHEN"))) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  }
+
   if (!process.env.DATABASE_URL) {
     return NextResponse.json({ orders: [] });
   }
@@ -142,7 +148,16 @@ type OrdersRouteDbWrite = {
 };
 
 export async function POST(request: Request) {
-  const payload = (await request.json()) as OrderPayload;
+  try {
+    const rawIp = request.headers.get("x-forwarded-for") || request.headers.get("x-client-ip") || request.headers.get("x-real-ip") || "client_ip";
+    const ip = rawIp.split(",")[0].trim();
+    const rateLimit = checkRateLimit(`order_${ip}`, 15, 10_000);
+
+    if (!rateLimit.allowed) {
+      return NextResponse.json({ error: "Muitas requisições em curto intervalo. Aguarde alguns segundos." }, { status: 429 });
+    }
+
+    const payload = (await request.json()) as OrderPayload;
 
   if (!payload.customerName || !payload.items?.length) {
     return NextResponse.json({ error: "Order requires customer and items" }, { status: 400 });
@@ -216,11 +231,19 @@ export async function POST(request: Request) {
   const duplicateCutoff = new Date(Date.now() - DUPLICATE_WINDOW_MS);
 
   const result = await db.$transaction(async (tx) => {
-    const lockRows = await tx.$queryRaw<Array<{ locked: boolean }>>`
-      SELECT pg_try_advisory_xact_lock(hashtext(${lockKey})) AS locked
-    `;
+    let isLocked = true;
+    try {
+      const lockRows = await tx.$queryRaw<Array<{ locked: boolean }>>`
+        SELECT pg_try_advisory_xact_lock(hashtext(${lockKey})) AS locked
+      `;
+      if (lockRows && lockRows.length > 0) {
+        isLocked = Boolean(lockRows[0].locked);
+      }
+    } catch {
+      isLocked = true;
+    }
 
-    if (!lockRows?.[0]?.locked) {
+    if (!isLocked) {
       return {
         duplicated: true,
         busy: true,
@@ -340,4 +363,8 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ order: result.order });
+  } catch (error) {
+    console.error("[Orders POST Error]:", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Internal order error" }, { status: 500 });
+  }
 }

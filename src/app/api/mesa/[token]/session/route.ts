@@ -29,7 +29,7 @@ type SessionRouteDb = {
       name: string;
       clientId: string;
     }>;
-    findMany: (args: unknown) => Promise<Array<{ id: string; name: string; active: boolean }>>;
+    findMany: (args: unknown) => Promise<Array<{ id: string; name: string; active: boolean; clientId: string }>>;
   };
 };
 
@@ -107,9 +107,12 @@ export async function POST(
 
   const users = await db.tableSessionUser.findMany({
     where: { sessionId: session.id, active: true },
-    select: { id: true, name: true, active: true },
+    select: { id: true, name: true, active: true, clientId: true },
     orderBy: { joinedAt: "asc" }
   });
 
-  return NextResponse.json({ table, session, user, users });
+  const hostUser = users[0] ?? null;
+  const isHost = Boolean(hostUser && (hostUser.id === user.id || hostUser.clientId === user.clientId));
+
+  return NextResponse.json({ table, session, user: { ...user, isHost }, users, hostUser, isHost });
 }

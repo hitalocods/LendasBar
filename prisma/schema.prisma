@@ -107,20 +107,23 @@ model Category {
 }
 
 model Product {
-  id           String      @id @default(cuid())
-  restaurantId String
-  categoryId   String?
-  consumerCode String?
-  name         String
-  description  String
-  imageUrl     String?
-  priceCents   Int
-  active       Boolean     @default(true)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  items        OrderItem[]
-  category     Category?   @relation(fields: [categoryId], references: [id])
-  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  id              String      @id @default(cuid())
+  restaurantId    String
+  categoryId      String?
+  consumerCode    String?
+  name            String
+  description     String
+  imageUrl        String?
+  priceCents      Int
+  isFeatured      Boolean     @default(false)
+  isPromo         Boolean     @default(false)
+  promoPriceCents Int?
+  active          Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  items           OrderItem[]
+  category        Category?   @relation(fields: [categoryId], references: [id])
+  restaurant      Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 }
 
 model Order {
@@ -132,7 +135,8 @@ model Order {
   customerName    String
   status          OrderStatus       @default(PENDING)
   consumerOrderId String?
-  syncStatus      String            @default("PENDING")
+  syncStatus      SyncStatus        @default(PENDING)
+  syncAttempts    Int               @default(0)
   syncedAt        DateTime?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
@@ -166,7 +170,7 @@ model MusicRequest {
   title        String
   artist       String?
   notes        String?
-  status       String             @default("OPEN")
+  status       MusicRequestStatus @default(OPEN)
   createdAt    DateTime           @default(now())
   playedAt     DateTime?
   restaurant   Restaurant         @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
@@ -236,4 +240,18 @@ enum WaiterCallStatus {
   OPEN
   ACKNOWLEDGED
   RESOLVED
+}
+
+enum SyncStatus {
+  PENDING
+  PROCESSING
+  SYNCED
+  FAILED
+  SYNC_FAILED_PERMANENT
+}
+
+enum MusicRequestStatus {
+  OPEN
+  PLAYED
+  REJECTED
 }

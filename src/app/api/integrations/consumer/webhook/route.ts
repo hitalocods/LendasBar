@@ -4,8 +4,26 @@ import { OrderStatus } from "@prisma/client";
 
 /**
  * Webhook Receptor oficial do Programa Consumer para atualizar o status em tempo real.
+ *
+ * Autenticação: configure CONSUMER_WEBHOOK_SECRET no .env e no painel do Consumer
+ * como secret do callback. O Consumer deve enviar:
+ *   Authorization: Bearer <CONSUMER_WEBHOOK_SECRET>
  */
 export async function POST(request: Request) {
+  // ── Autenticação ────────────────────────────────────────────────────────────
+  const webhookSecret = process.env.CONSUMER_WEBHOOK_SECRET;
+  if (webhookSecret) {
+    const authHeader = request.headers.get("authorization") ?? "";
+    const provided = authHeader.startsWith("Bearer ")
+      ? authHeader.slice(7)
+      : authHeader;
+
+    if (provided !== webhookSecret) {
+      console.warn("[Consumer Webhook] Unauthorized attempt blocked.");
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  }
+
   try {
     const body = await request.json();
     const { orderId, id_externo, consumer_id, fullCode, code, status } = body as {

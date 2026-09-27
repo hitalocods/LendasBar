@@ -57,7 +57,7 @@ async function main() {
   ];
 
   const staff = [
-    { name: "Rui", email: "rui@lendas.local", role: "OWNER", password: "rui@2018" },
+    { name: "Rui", email: "rui@lendas.local", role: "OWNER", password: "rui2026" },
     { name: "Gerente", email: "manager@lendas.local", role: "MANAGER", password: "manager@2018" },
     { name: "Cozinha", email: "cozinha@lendas.local", role: "KITCHEN", password: "kitchen@2018" },
     ...waiters.map((waiter) => ({

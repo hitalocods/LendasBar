@@ -35,9 +35,12 @@ function getAuthSecret() {
   if (process.env.NEXTAUTH_SECRET) return process.env.NEXTAUTH_SECRET;
 
   if (process.env.NODE_ENV === "production") {
-    // Avoid hard crashes in production if envs are missing.
-    // Keep a stable fallback so existing sessions remain readable between requests.
-    return "lendas-production-fallback-change-me";
+    // In production, AUTH_SECRET is mandatory. Fail loudly so the misconfiguration
+    // is caught at startup instead of silently allowing session forgery.
+    throw new Error(
+      "[auth] AUTH_SECRET env var is required in production. " +
+      "Set it in your Vercel project settings or .env.local."
+    );
   }
 
   return "lendas-dev-auth-secret";

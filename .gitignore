@@ -31,3 +31,7 @@ prisma/dev.db-journal
 # system
 .DS_Store
 Thumbs.db
+
+# local artifacts & build cache
+tsconfig.tsbuildinfo
+scratch/

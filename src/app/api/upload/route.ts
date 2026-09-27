@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { hasStaffAccess } from "@/lib/auth";
+import { uploadToCloudinary } from "@/lib/cloudinary";
 
 export const dynamic = "force-dynamic";
 
@@ -18,14 +19,12 @@ export async function POST(request: Request) {
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const mimeType = file.type || "image/png";
 
-    // Convert file to Base64 Data URI for immediate reliable local display without filesystem permission issues in serverless
-    const dataUrl = `data:${mimeType};base64,${buffer.toString("base64")}`;
+    const { url } = await uploadToCloudinary(buffer, "lendas/products");
 
-    return NextResponse.json({ url: dataUrl });
+    return NextResponse.json({ url });
   } catch (error) {
-    console.error("Upload error:", error);
+    console.error("Cloudinary upload error:", error);
     return NextResponse.json({ error: "Upload failed" }, { status: 500 });
   }
 }

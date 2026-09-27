@@ -11,6 +11,9 @@ type ProductRecord = {
   imageUrl: string | null;
   priceCents: number;
   consumerCode: string | null;
+  isFeatured: boolean;
+  isPromo: boolean;
+  promoPriceCents: number | null;
   active: boolean;
   category: { name: string } | null;
 };
@@ -37,6 +40,9 @@ function toClientProduct(product: ProductRecord) {
     imageUrl: product.imageUrl,
     price: product.priceCents / 100,
     consumerCode: product.consumerCode,
+    isFeatured: product.isFeatured ?? false,
+    isPromo: product.isPromo ?? false,
+    promoPrice: product.promoPriceCents ? product.promoPriceCents / 100 : null,
     category: product.category?.name ?? "Cardapio",
     active: product.active,
     tone: "from-red-700/30 to-zinc-950"
@@ -94,6 +100,9 @@ export async function POST(request: Request) {
     price?: number;
     imageUrl?: string;
     consumerCode?: string;
+    isFeatured?: boolean;
+    isPromo?: boolean;
+    promoPrice?: number;
   };
 
   if (!body.name?.trim() || !body.description?.trim() || !body.category?.trim() || !body.price) {
@@ -128,7 +137,10 @@ export async function POST(request: Request) {
       description: body.description.trim(),
       imageUrl: body.imageUrl?.trim() || null,
       consumerCode: body.consumerCode?.trim() || null,
-      priceCents: Math.round(Number(body.price) * 100)
+      priceCents: Math.round(Number(body.price) * 100),
+      isFeatured: Boolean(body.isFeatured),
+      isPromo: Boolean(body.isPromo),
+      promoPriceCents: body.promoPrice ? Math.round(Number(body.promoPrice) * 100) : null
     },
     include: { category: { select: { name: true } } }
   });

@@ -19,6 +19,9 @@ type Product = {
   price: number;
   imageUrl?: string;
   consumerCode?: string | null;
+  isFeatured?: boolean;
+  isPromo?: boolean;
+  promoPrice?: number | null;
 };
 type TableRow = {
   id: string;
@@ -156,8 +159,24 @@ function TablesAndQr() {
 
   useEffect(() => {
     window.setTimeout(loadTables, 0);
-    const interval = window.setInterval(loadTables, 5000);
-    return () => window.clearInterval(interval);
+    let interval = window.setInterval(loadTables, 5000);
+
+    // Pausa o polling quando a aba está em background para economizar requests
+    function handleVisibilityChange() {
+      if (document.hidden) {
+        window.clearInterval(interval);
+      } else {
+        // Recarrega imediatamente ao voltar para a aba
+        loadTables().catch(() => {});
+        interval = window.setInterval(loadTables, 5000);
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, [loadTables]);
 
   async function closeTable(token: string) {
@@ -283,10 +302,12 @@ function TablesAndQr() {
     if (!printWindow) return;
 
     const origin = window.location.origin;
+    // Usa a API pública do Google Charts para gerar QR codes sem depender de
+    // serviços de terceiros instáveis. É confiável e não requer autenticação.
     const cardsHtml = displayTables
       .map((table) => {
         const url = `${origin}/mesa/${table.qrToken}`;
-        const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(url)}`;
+        const qrImageUrl = `https://chart.googleapis.com/chart?cht=qr&chs=250x250&choe=UTF-8&chl=${encodeURIComponent(url)}`;
         return `
           <div class="print-card">
             <div class="brand">LENDAS 2018</div>
@@ -659,16 +680,51 @@ function ConsumerIntegrationManager() {
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [permanentCount, setPermanentCount] = useState(0);
+  const [resyncing, setResyncing] = useState(false);
 
   const pollingUrl = `${origin}/api/integrations/consumer/events`;
   const orderDetailsUrl = `${origin}/api/integrations/consumer/orders/{id}`;
   const webhookUrl = `${origin}/api/integrations/consumer/webhook`;
+
+  const checkPending = useCallback(async () => {
+    try {
+      const res = await fetch("/api/integrations/consumer/resync", { cache: "no-store" });
+      if (res.ok) {
+        const data = (await res.json()) as { pendingCount?: number; permanentCount?: number };
+        setPendingCount(data.pendingCount ?? 0);
+        setPermanentCount(data.permanentCount ?? 0);
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(checkPending, 0);
+    const interval = window.setInterval(checkPending, 10000);
+    return () => {
+      window.clearTimeout(timer);
+      window.clearInterval(interval);
+    };
+  }, [checkPending]);
 
   function copyToClipboard(text: string, label: string) {
     if (!text) return;
     navigator.clipboard.writeText(text);
     setCopiedUrl(label);
     setTimeout(() => setCopiedUrl(null), 2000);
+  }
+
+  async function handleResync() {
+    setResyncing(true);
+    try {
+      const res = await fetch("/api/integrations/consumer/resync", { method: "POST" });
+      if (res.ok) {
+        await checkPending();
+      }
+    } finally {
+      setResyncing(false);
+    }
   }
 
   async function handleTestConnection() {
@@ -700,6 +756,43 @@ function ConsumerIntegrationManager() {
 
   return (
     <div className="space-y-5">
+      {permanentCount > 0 && (
+        <Card className="border-red-500/50 bg-gradient-to-r from-red-950/80 via-black to-zinc-950 p-4 text-red-200 shadow-2xl">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <span className="text-xs uppercase font-extrabold tracking-wider text-red-400">
+                🛑 Intervenção Manual Necessária (Falha Permanente)
+              </span>
+              <h3 className="text-sm font-bold text-white mt-0.5">
+                Existem {permanentCount} {permanentCount === 1 ? "pedido" : "pedidos"} que atingiram o limite máximo de 5 tentativas de envio
+              </h3>
+              <p className="text-xs text-zinc-400 mt-0.5">
+                Verifique se o código do produto (Código Consumer) está correto no cadastro do cardápio.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {pendingCount > 0 && (
+        <Card className="border-amber-500/40 bg-gradient-to-r from-amber-950/60 via-black to-zinc-950 p-4 text-amber-200 flex flex-wrap items-center justify-between gap-3 shadow-xl">
+          <div>
+            <span className="text-xs uppercase font-extrabold tracking-wider text-amber-400">
+              🚨 Alerta de Sincronização
+            </span>
+            <h3 className="text-sm font-bold text-white mt-0.5">
+              Existem {pendingCount} {pendingCount === 1 ? "pedido pendente" : "pedidos pendentes"} de sincronização com o Consumer
+            </h3>
+            <p className="text-xs text-zinc-400 mt-0.5">
+              Estes pedidos estão agendados para retry automático a cada 5 minutos via Cron ou clique manual.
+            </p>
+          </div>
+          <Button onClick={handleResync} disabled={resyncing} className="bg-amber-600 hover:bg-amber-500 text-black font-extrabold text-xs">
+            {resyncing ? "Re-enviando..." : "Re-sincronizar Agora"}
+          </Button>
+        </Card>
+      )}
+
       <Card className="border-white/10 bg-black/45 p-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -783,7 +876,10 @@ function MenuManager() {
     category: "Hamburgueres",
     price: "",
     imageUrl: "",
-    consumerCode: ""
+    consumerCode: "",
+    isFeatured: false,
+    isPromo: false,
+    promoPrice: ""
   });
 
   async function loadProducts() {
@@ -804,14 +900,25 @@ function MenuManager() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...form,
-        price: Number(form.price.replace(",", "."))
+        price: Number(form.price.replace(",", ".")),
+        promoPrice: form.promoPrice ? Number(form.promoPrice.replace(",", ".")) : null
       })
     });
 
     if (!response.ok) return;
 
     setEditingId(null);
-    setForm({ name: "", description: "", category: form.category, price: "", imageUrl: "", consumerCode: "" });
+    setForm({
+      name: "",
+      description: "",
+      category: form.category,
+      price: "",
+      imageUrl: "",
+      consumerCode: "",
+      isFeatured: false,
+      isPromo: false,
+      promoPrice: ""
+    });
     await loadProducts();
   }
 
@@ -844,7 +951,10 @@ function MenuManager() {
       category: product.category,
       price: String(product.price).replace(".", ","),
       imageUrl: product.imageUrl ?? "",
-      consumerCode: product.consumerCode ?? ""
+      consumerCode: product.consumerCode ?? "",
+      isFeatured: Boolean(product.isFeatured),
+      isPromo: Boolean(product.isPromo),
+      promoPrice: product.promoPrice ? String(product.promoPrice).replace(".", ",") : ""
     });
   }
 
@@ -888,10 +998,43 @@ function MenuManager() {
             <Field label="Categoria">
               <Input value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} placeholder="Hamburgueres" />
             </Field>
-            <Field label="Preco">
+            <Field label="Preco (R$)">
               <Input value={form.price} onChange={(event) => setForm({ ...form, price: event.target.value })} placeholder="29,90" />
             </Field>
           </div>
+
+          <div className="rounded-lg border border-white/10 bg-zinc-950/60 p-3 space-y-2">
+            <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-zinc-200">
+              <input
+                type="checkbox"
+                checked={form.isFeatured}
+                onChange={(e) => setForm({ ...form, isFeatured: e.target.checked })}
+                className="rounded border-zinc-700 bg-zinc-900 text-red-600 focus:ring-red-500"
+              />
+              🔥 Destaque no Carrossel (Mais Pedidos)
+            </label>
+
+            <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-zinc-200">
+              <input
+                type="checkbox"
+                checked={form.isPromo}
+                onChange={(e) => setForm({ ...form, isPromo: e.target.checked })}
+                className="rounded border-zinc-700 bg-zinc-900 text-red-600 focus:ring-red-500"
+              />
+              🏷️ Oferta do Dia / Promoção
+            </label>
+
+            {form.isPromo && (
+              <Field label="Preço Promocional (R$)">
+                <Input
+                  value={form.promoPrice}
+                  onChange={(event) => setForm({ ...form, promoPrice: event.target.value })}
+                  placeholder="Ex: 24,90"
+                />
+              </Field>
+            )}
+          </div>
+
           <Field label="Codigo Consumer (ID PDV)">
             <Input value={form.consumerCode} onChange={(event) => setForm({ ...form, consumerCode: event.target.value })} placeholder="Ex: 104 ou BEB-01" />
           </Field>
@@ -933,12 +1076,33 @@ function MenuManager() {
                 {product.imageUrl ? <Image src={product.imageUrl} alt={product.name} fill sizes="96px" className="object-cover" /> : null}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold">{product.name}</p>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <p className="truncate text-sm font-semibold">{product.name}</p>
+                  {product.isFeatured && (
+                    <Badge className="bg-red-600/80 text-[10px] px-1.5 py-0 text-white font-bold">
+                      🔥 Destaque
+                    </Badge>
+                  )}
+                  {product.isPromo && (
+                    <Badge className="bg-amber-500/20 border-amber-500/40 text-amber-300 text-[10px] px-1.5 py-0 font-bold">
+                      🏷️ Promo
+                    </Badge>
+                  )}
+                </div>
                 <p className="mt-1 line-clamp-2 text-xs text-zinc-500">{product.desc}</p>
                 <div className="mt-3 flex items-center justify-between gap-2">
                   <div>
                     <Badge>{product.category}</Badge>
-                    <p className="mt-2 text-sm font-semibold text-red-300">{formatCurrency(product.price)}</p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <p className={cn("text-sm font-semibold", product.isPromo ? "text-zinc-500 line-through text-xs" : "text-red-300")}>
+                        {formatCurrency(product.price)}
+                      </p>
+                      {product.isPromo && product.promoPrice && (
+                        <p className="text-sm font-bold text-emerald-400">
+                          {formatCurrency(product.promoPrice)}
+                        </p>
+                      )}
+                    </div>
                   </div>
                   <div className="flex gap-2">
                     <Button size="icon" variant="secondary" onClick={() => editProduct(product)} aria-label="Editar produto">
@@ -1114,8 +1278,22 @@ function WaiterCallsHeader() {
 
   useEffect(() => {
     window.setTimeout(loadCalls, 0);
-    const interval = window.setInterval(loadCalls, 4000);
-    return () => window.clearInterval(interval);
+    let interval = window.setInterval(loadCalls, 4000);
+
+    function handleVisibilityChange() {
+      if (document.hidden) {
+        window.clearInterval(interval);
+      } else {
+        loadCalls().catch(() => {});
+        interval = window.setInterval(loadCalls, 4000);
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, [loadCalls]);
 
   async function handleResolve(id: string) {

@@ -91,6 +91,7 @@ const CONSUMER_API_KEY = process.env.CONSUMER_API_KEY || "";
 export function mapOrderToConsumerPayload(order: {
   id: string;
   restaurantId: string;
+  restaurantName?: string;
   customerName: string;
   tableNumber?: number;
   createdAt: Date;
@@ -109,13 +110,13 @@ export function mapOrderToConsumerPayload(order: {
     id: order.id,
     displayId: order.tableNumber ? String(order.tableNumber) : order.id.slice(-4),
     orderType: "INDOOR",
-    salesChannel: "LENDAS_BAR",
+    salesChannel: process.env.CONSUMER_SALES_CHANNEL || "LENDAS_BAR",
     orderTiming: "IMMEDIATE",
     createdAt: order.createdAt.toISOString(),
     preparationStartDateTime: order.createdAt.toISOString(),
     merchant: {
       id: order.restaurantId,
-      name: "LENDAS 2018"
+      name: order.restaurantName || process.env.CONSUMER_MERCHANT_NAME || "LENDAS 2018"
     },
     customer: {
       id: `cust_${order.customerName.toLowerCase().replace(/\s+/g, "_")}`,
@@ -124,9 +125,16 @@ export function mapOrderToConsumerPayload(order: {
     items: order.items.map((item) => {
       const unitValue = item.unitCents / 100;
       const totalValue = unitValue * item.quantity;
+      // Sanitize externalCode: normalize accents and replace spaces/special chars
+      const sanitizedName = item.productName
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "");
       return {
         id: item.id,
-        externalCode: item.productCode || item.productName.toLowerCase().replace(/\s+/g, "_"),
+        externalCode: item.productCode || sanitizedName || item.id,
         name: item.productName,
         quantity: item.quantity,
         unitPrice: {
@@ -168,6 +176,7 @@ export function mapOrderToConsumerPayload(order: {
 export async function sendOrderToConsumer(orderData: {
   id: string;
   restaurantId: string;
+  restaurantName?: string;
   customerName: string;
   tableNumber?: number;
   createdAt: Date;
