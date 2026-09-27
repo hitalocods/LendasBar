@@ -12,16 +12,18 @@ export async function GET(request: Request) {
   const isVercelCron = request.headers.get("x-vercel-cron") === "1";
   const cronSecret = process.env.CRON_SECRET;
 
+  const url = new URL(request.url);
+  const querySecret = url.searchParams.get("secret");
+
   const isAuthorized =
     isVercelCron ||
-    (cronSecret && authHeader === `Bearer ${cronSecret}`) ||
+    (cronSecret && (authHeader === `Bearer ${cronSecret}` || querySecret === cronSecret)) ||
     process.env.NODE_ENV === "development";
 
   if (!isAuthorized) {
     return NextResponse.json({ error: "Unauthorized cron trigger" }, { status: 401 });
   }
 
-  const url = new URL(request.url);
   const orderId = url.searchParams.get("orderId") || undefined;
 
   const result = await executeAtomicResync(orderId);
