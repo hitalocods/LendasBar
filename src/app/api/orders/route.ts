@@ -354,9 +354,10 @@ export async function POST(request: Request) {
           }
         }).catch(console.error);
       } else {
+        // Mantém PENDING para o Polling do Consumer Desktop puxar
         await dbInst.order.update({
           where: { id: createdOrder.id },
-          data: { syncStatus: "FAILED" }
+          data: { syncStatus: "PENDING" }
         }).catch(console.error);
       }
     }).catch(console.error);

@@ -33,8 +33,8 @@ export async function GET() {
   // Busca pedidos criados recentemente que estejam pendentes de sincronização
   const pendingOrders = await db.order.findMany({
     where: {
-      restaurantId: restaurant.id,
-      syncStatus: "PENDING"
+      syncStatus: { in: ["PENDING", "FAILED"] },
+      status: { not: "CANCELLED" }
     },
     orderBy: { createdAt: "asc" },
     take: 10
@@ -72,7 +72,7 @@ export async function GET() {
   if (pendingOrders.length > 0) {
     const deliveredIds = pendingOrders.map((o) => o.id);
     await db.order.updateMany({
-      where: { id: { in: deliveredIds }, syncStatus: "PENDING" },
+      where: { id: { in: deliveredIds } },
       data: { syncStatus: "SYNCED", syncedAt: new Date() }
     }).catch((err) => console.error("[Consumer Events] Failed to mark as SYNCED:", err));
   }
