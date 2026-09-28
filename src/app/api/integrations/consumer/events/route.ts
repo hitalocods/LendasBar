@@ -69,16 +69,6 @@ export async function GET() {
     };
   });
 
-  // Após entregar os eventos, marca os pedidos como SYNCED para que não
-  // sejam reenviados no próximo poll do Consumer.
-  if (pendingOrders.length > 0) {
-    const deliveredIds = pendingOrders.map((o) => o.id);
-    await db.order.updateMany({
-      where: { id: { in: deliveredIds } },
-      data: { syncStatus: "SYNCED", syncedAt: new Date() }
-    }).catch((err) => console.error("[Consumer Events] Failed to mark as SYNCED:", err));
-  }
-
   return NextResponse.json({
     items,
     statusCode: 0,

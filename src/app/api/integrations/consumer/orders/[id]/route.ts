@@ -51,6 +51,12 @@ export async function GET(
     }))
   });
 
+  // Marca como SYNCED quando o Consumer consome os detalhes do pedido
+  await db.order.update({
+    where: { id: order.id },
+    data: { syncStatus: "SYNCED", syncedAt: new Date() }
+  }).catch((err) => console.error("[Consumer Orders GET] syncStatus update failed:", err));
+
   return NextResponse.json({
     item: payload,
     statusCode: 0,
