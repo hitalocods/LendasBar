@@ -4,15 +4,33 @@ import { mapOrderToConsumerPayload } from "@/lib/consumer-api";
 
 export const dynamic = "force-dynamic";
 
+function extractTargetId(slugs: string[], searchParams: URLSearchParams): string | null {
+  const queryId = searchParams.get("id") || searchParams.get("orderId");
+  if (queryId) return queryId;
+
+  // Filtra tokens literais como "{id}" ou "%7Bid%7D" caso o Consumer tenha anexado o ID depois do template
+  const validSlugs = slugs.filter(
+    (s) => s && s !== "{id}" && s !== "%7Bid%7D" && s !== "order" && s !== "orders"
+  );
+
+  return validSlugs[validSlugs.length - 1] || null;
+}
+
 /**
  * Endpoint de Consulta de Detalhes do Pedido da API Oficial do Consumer
- * O Consumer faz GET com o ID do pedido para receber a estrutura completa JSON.
+ * Suporta qualquer combinação de rota (/orders/ID, /orders/{id}/ID, /orders/%7Bid%7D/ID)
  */
 export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  request: Request,
+  { params }: { params: Promise<{ slug: string[] }> }
 ) {
-  const { id } = await params;
+  const { slug = [] } = await params;
+  const { searchParams } = new URL(request.url);
+  const id = extractTargetId(slug, searchParams);
+
+  if (!id) {
+    return NextResponse.json({ error: "Missing order id" }, { status: 400 });
+  }
 
   if (!process.env.DATABASE_URL) {
     return NextResponse.json({ error: "Database not configured" }, { status: 500 });
@@ -32,6 +50,7 @@ export async function GET(
   });
 
   if (!order) {
+    console.warn(`[Consumer Orders GET] Order not found for id: ${id}`);
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
   }
 
@@ -66,9 +85,12 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ slug: string[] }> }
 ) {
-  const { id } = await params;
+  const { slug = [] } = await params;
+  const { searchParams } = new URL(request.url);
+  const id = extractTargetId(slug, searchParams);
+
   try {
     const body = await request.json().catch(() => ({}));
     const db = getDb();
@@ -95,4 +117,3 @@ export async function POST(
     return NextResponse.json({ statusCode: 0, reasonPhrase: null });
   }
 }
-
