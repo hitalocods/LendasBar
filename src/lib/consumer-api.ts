@@ -55,6 +55,12 @@ export interface OfficialConsumerOrderPayload {
   orderTiming: "IMMEDIATE";
   createdAt: string;
   preparationStartDateTime: string;
+  indoor?: {
+    mode: "TABLE";
+    deliveryDateTime: string;
+    table: string;
+    observations?: string;
+  };
   merchant: ConsumerMerchant;
   customer: ConsumerCustomer;
   items: ConsumerItem[];
@@ -114,6 +120,12 @@ export function mapOrderToConsumerPayload(order: {
     orderTiming: "IMMEDIATE",
     createdAt: order.createdAt.toISOString(),
     preparationStartDateTime: order.createdAt.toISOString(),
+    indoor: {
+      mode: "TABLE",
+      deliveryDateTime: order.createdAt.toISOString(),
+      table: String(order.tableNumber ?? 1),
+      observations: ""
+    },
     merchant: {
       id: order.restaurantId,
       name: order.restaurantName || process.env.CONSUMER_MERCHANT_NAME || "LENDAS 2018"
