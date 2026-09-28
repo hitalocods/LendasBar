@@ -83,3 +83,11 @@ export async function GET() {
     reasonPhrase: null
   });
 }
+
+export async function POST(request: Request) {
+  // Consumer acknowledgment de eventos recebidos
+  return NextResponse.json({
+    statusCode: 0,
+    reasonPhrase: null
+  });
+}

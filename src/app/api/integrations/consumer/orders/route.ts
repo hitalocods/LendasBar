@@ -5,14 +5,15 @@ import { mapOrderToConsumerPayload } from "@/lib/consumer-api";
 export const dynamic = "force-dynamic";
 
 /**
- * Endpoint de Consulta de Detalhes do Pedido da API Oficial do Consumer
- * O Consumer faz GET com o ID do pedido para receber a estrutura completa JSON.
+ * Consulta de detalhes do pedido via Query Params (?id=xxx ou ?orderId=xxx)
  */
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get("id") || searchParams.get("orderId");
+
+  if (!id) {
+    return NextResponse.json({ error: "Missing order id query param" }, { status: 400 });
+  }
 
   if (!process.env.DATABASE_URL) {
     return NextResponse.json({ error: "Database not configured" }, { status: 500 });
@@ -58,19 +59,16 @@ export async function GET(
   });
 }
 
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
+export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
-    const db = getDb();
-    const consumerId = body.consumer_id || body.id_consumer || body.id;
+    const orderId = body.orderId || body.id_externo || body.id;
+    const consumerId = body.consumer_id || body.id_consumer;
 
-    if (consumerId && id) {
+    if (orderId && consumerId) {
+      const db = getDb();
       await db.order.update({
-        where: { id },
+        where: { id: orderId },
         data: {
           consumerOrderId: String(consumerId),
           syncStatus: "SYNCED",
@@ -85,7 +83,7 @@ export async function POST(
       reasonPhrase: null
     });
   } catch (error) {
-    console.error("[Consumer Orders ID POST Error]:", error);
+    console.error("[Consumer Orders POST Error]:", error);
     return NextResponse.json({ statusCode: 0, reasonPhrase: null });
   }
 }
