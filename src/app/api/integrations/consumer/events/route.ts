@@ -30,14 +30,16 @@ export async function GET() {
     return NextResponse.json({ items: [], statusCode: 0, reasonPhrase: null });
   }
 
-  // Busca pedidos criados recentemente que estejam pendentes de sincronização
+  // Busca pedidos criados nas últimas 24 horas pendentes de sincronização (mais novos primeiro)
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const pendingOrders = await db.order.findMany({
     where: {
+      createdAt: { gte: oneDayAgo },
       syncStatus: { in: ["PENDING", "FAILED"] },
       status: { not: "CANCELLED" }
     },
-    orderBy: { createdAt: "asc" },
-    take: 10
+    orderBy: { createdAt: "desc" },
+    take: 20
   });
 
   const items = pendingOrders.map((order) => {
