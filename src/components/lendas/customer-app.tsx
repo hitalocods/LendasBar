@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Bell, CreditCard, Home, Minus, Music2, Plus, ReceiptText, Search, ShoppingBag, Trash2, Utensils } from "lucide-react";
+import { Bell, Minus, Music2, Plus, Search, ShoppingBag, Trash2, Utensils } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ import { useLendasStore } from "@/store/lendas-store";
 import { toThemeStyle } from "@/lib/restaurant-theme";
 
 type Product = (typeof menuItems)[number];
-type Step = "welcome" | "menu" | "cart" | "sent" | "actions" | "music";
+type Step = "welcome" | "menu" | "cart" | "sent" | "waiter" | "music";
 type BillGroup = {
   customerName: string;
   lines: Array<{ label: string; value: number }>;
@@ -208,17 +208,16 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
     }
   }
 
-  async function sendWaiterCall(type: "WAITER" | "BILL") {
-    if (type === "WAITER") callWaiter(customerName);
-    else requestBill(customerName);
+  async function sendWaiterCall(reason?: string) {
+    callWaiter(customerName);
 
     await fetch("/api/waiter-calls", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         tableToken: tableId,
-        customerName,
-        type
+        customerName: reason ? `${customerName} (${reason})` : customerName,
+        type: "WAITER"
       })
     }).catch(() => {});
   }
@@ -276,6 +275,7 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
                 sendFeedback={orderSendFeedback}
                 isHost={isHost}
                 hostName={hostUser?.name}
+                onExploreMenu={() => setStep("menu")}
               />
             )}
             {step === "sent" && <OrderSentScreen onBackToMenu={() => setStep("menu")} />}
@@ -293,7 +293,7 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
                 setMusicSent={setMusicSent}
               />
             )}
-            {step === "actions" && <WaiterActions onWaiter={() => sendWaiterCall("WAITER")} onBill={() => sendWaiterCall("BILL")} />}
+            {step === "waiter" && <WaiterScreen tableId={tableId} onWaiter={sendWaiterCall} />}
           </div>
 
           {step !== "welcome" && step !== "sent" && (
@@ -615,7 +615,8 @@ function SharedCart({
   isSending,
   sendFeedback,
   isHost,
-  hostName
+  hostName,
+  onExploreMenu
 }: {
   customerName: string;
   cart: Array<{ id: string; productName: string; customerName: string; quantity: number; unitPrice: number }>;
@@ -627,78 +628,101 @@ function SharedCart({
   sendFeedback: string | null;
   isHost?: boolean;
   hostName?: string;
+  onExploreMenu?: () => void;
 }) {
   const grouped = cart.reduce<Record<string, typeof cart>>((groups, line) => {
     groups[line.customerName] = [...(groups[line.customerName] || []), line];
     return groups;
   }, {});
   const realGroups = bill?.groups ?? [];
+  const hasItems = cart.length > 0 || realGroups.length > 0;
 
   return (
     <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
-      <h1 className="mb-1 text-2xl font-semibold">Meu pedido</h1>
-      <p className="mb-5 text-sm text-zinc-500">Mesa compartilhada · todos acompanham juntos</p>
-      <div className="space-y-3">
-        {realGroups.map((group) => (
-          <Card key={group.customerName} className="border-white/10 bg-white/[0.045] p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <div>
-                <p className="font-semibold">{group.customerName}</p>
-                <p className="text-xs text-zinc-500">Subtotal {formatCurrency(group.total / 100)}</p>
-              </div>
-              {group.customerName === customerName && <Badge className="border-red-500/30 bg-red-500/10 text-red-100">voce</Badge>}
-            </div>
-            <div className="space-y-2">
-              {group.lines.map((line, index) => (
-                <Line key={`${group.customerName}-${line.label}-${index}`} label={line.label} value={line.value / 100} />
-              ))}
-            </div>
-          </Card>
-        ))}
-        {Object.entries(grouped).map(([guest, lines]) => (
-          <Card key={`pending-${guest}`} className="border-white/10 bg-white/[0.045] p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <div>
-                <p className="font-semibold">{guest}</p>
-                <p className="text-xs text-red-200/80">No carrinho</p>
-                <p className="text-xs text-zinc-500">
-                  Subtotal {formatCurrency(lines.reduce((total, line) => total + line.quantity * line.unitPrice, 0))}
-                </p>
-              </div>
-              {guest === customerName && <Badge className="border-red-500/30 bg-red-500/10 text-red-100">voce</Badge>}
-            </div>
-            <div className="space-y-2">
-              {lines.map((line) => (
-                <Line
-                  key={line.id}
-                  label={`${line.quantity}x ${line.productName}`}
-                  value={line.quantity * line.unitPrice}
-                  onRemove={guest === customerName ? () => onRemove(line.id) : undefined}
-                />
-              ))}
-            </div>
-          </Card>
-        ))}
+      <div className="mb-4">
+        <p className="text-xs font-semibold uppercase tracking-wider text-red-400">Fazer Pedido</p>
+        <h1 className="text-2xl font-bold text-white">Carrinho da Mesa</h1>
+        <p className="mt-0.5 text-xs text-zinc-400">Revise os itens e envie para a cozinha ou bar.</p>
       </div>
-      <div className="mt-5 rounded-lg border border-white/10 bg-black/45 p-4">
-        <div className="flex items-center justify-between text-sm text-zinc-400">
-          <span>Total da mesa</span>
-          <span className="text-xl font-semibold text-red-400">{formatCurrency(tableBillTotal)}</span>
-        </div>
 
-        {isHost ? (
-          <Button className="mt-4 w-full font-bold" disabled={cart.length === 0 || isSending} onClick={onSend}>
-            {isSending ? "Enviando..." : "Enviar pedido da mesa"}
-          </Button>
-        ) : (
-          <Button className="mt-4 w-full font-medium bg-zinc-800 text-zinc-400 border border-white/10 opacity-90 cursor-not-allowed" disabled>
-            👑 Aguardando {hostName || "o Líder"} enviar o pedido
-          </Button>
-        )}
-        {sendFeedback && (
-          <p className="mt-3 text-center text-xs text-amber-200">{sendFeedback}</p>
-        )}
-      </div>
+      {!hasItems ? (
+        <Card className="border-white/10 bg-white/[0.04] p-8 text-center">
+          <ShoppingBag className="mx-auto mb-3 h-12 w-12 text-zinc-600" />
+          <h2 className="text-base font-bold text-white">Carrinho vazio</h2>
+          <p className="mt-1 mb-5 text-xs text-zinc-400">
+            Você ainda não adicionou nenhum item do cardápio ao pedido.
+          </p>
+          {onExploreMenu && (
+            <Button onClick={onExploreMenu} className="font-bold">
+              Ver cardápio
+            </Button>
+          )}
+        </Card>
+      ) : (
+        <>
+          <div className="space-y-3">
+            {realGroups.map((group) => (
+              <Card key={group.customerName} className="border-white/10 bg-white/[0.045] p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-white">{group.customerName}</p>
+                    <p className="text-xs text-zinc-400">Já pedido · {formatCurrency(group.total / 100)}</p>
+                  </div>
+                  {group.customerName === customerName && <Badge className="border-red-500/30 bg-red-500/10 text-red-100">você</Badge>}
+                </div>
+                <div className="space-y-2">
+                  {group.lines.map((line, index) => (
+                    <Line key={`${group.customerName}-${line.label}-${index}`} label={line.label} value={line.value / 100} />
+                  ))}
+                </div>
+              </Card>
+            ))}
+            {Object.entries(grouped).map(([guest, lines]) => (
+              <Card key={`pending-${guest}`} className="border-red-500/30 bg-gradient-to-b from-red-950/20 to-black p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-white">{guest}</p>
+                    <p className="text-xs text-amber-300 font-medium">Pronto para enviar</p>
+                    <p className="text-xs text-zinc-400">
+                      Subtotal {formatCurrency(lines.reduce((total, line) => total + line.quantity * line.unitPrice, 0))}
+                    </p>
+                  </div>
+                  {guest === customerName && <Badge className="border-red-500/30 bg-red-500/20 text-red-100">você</Badge>}
+                </div>
+                <div className="space-y-2">
+                  {lines.map((line) => (
+                    <Line
+                      key={line.id}
+                      label={`${line.quantity}x ${line.productName}`}
+                      value={line.quantity * line.unitPrice}
+                      onRemove={guest === customerName ? () => onRemove(line.id) : undefined}
+                    />
+                  ))}
+                </div>
+              </Card>
+            ))}
+          </div>
+          <div className="mt-5 rounded-xl border border-white/10 bg-black/60 p-4 shadow-xl">
+            <div className="flex items-center justify-between text-sm text-zinc-300">
+              <span className="font-medium">Total dos pedidos da mesa</span>
+              <span className="text-xl font-bold text-red-400">{formatCurrency(tableBillTotal)}</span>
+            </div>
+
+            {isHost ? (
+              <Button className="mt-4 w-full h-12 text-sm font-bold shadow-lg" disabled={cart.length === 0 || isSending} onClick={onSend}>
+                {isSending ? "Enviando pedido..." : "Enviar pedido da mesa"}
+              </Button>
+            ) : (
+              <Button className="mt-4 w-full h-12 font-medium bg-zinc-800 text-zinc-400 border border-white/10 opacity-90 cursor-not-allowed" disabled>
+                👑 Aguardando {hostName || "o Líder"} enviar o pedido
+              </Button>
+            )}
+            {sendFeedback && (
+              <p className="mt-3 text-center text-xs text-amber-200">{sendFeedback}</p>
+            )}
+          </div>
+        </>
+      )}
     </motion.section>
   );
 }
@@ -707,7 +731,7 @@ function Line({ label, value, onRemove }: { label: string; value: number; onRemo
   return (
     <div className="flex items-center justify-between gap-3 text-sm">
       <span className="min-w-0 flex-1 text-zinc-300">{label}</span>
-      <span className="shrink-0">{formatCurrency(value)}</span>
+      <span className="shrink-0 font-medium">{formatCurrency(value)}</span>
       {onRemove && (
         <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-zinc-400 hover:text-red-200" onClick={onRemove} aria-label={`Remover ${label}`}>
           <Trash2 className="h-4 w-4" />
@@ -720,57 +744,123 @@ function Line({ label, value, onRemove }: { label: string; value: number; onRemo
 function OrderSentScreen({ onBackToMenu }: { onBackToMenu: () => void }) {
   return (
     <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
-      <h1 className="mb-1 text-2xl font-semibold">Pedido enviado</h1>
-      <p className="mb-5 text-sm text-zinc-500">Recebemos seu pedido e a equipe vai cuidar dele agora.</p>
-      <Card className="border-white/10 bg-white/[0.045] p-5 text-center">
-        <p className="text-3xl font-semibold text-red-400">Pedido enviado</p>
-        <Button className="mt-5 w-full" onClick={onBackToMenu}>
-          Voltar ao cardapio
+      <h1 className="mb-1 text-2xl font-semibold">Pedido enviado!</h1>
+      <p className="mb-5 text-sm text-zinc-500">Recebemos seu pedido e a equipe do bar já começou a preparar.</p>
+      <Card className="border-red-500/20 bg-white/[0.045] p-6 text-center">
+        <p className="text-2xl font-bold text-red-400">Pedido enviado com sucesso</p>
+        <p className="mt-2 text-xs text-zinc-400">Acompanhe seus pedidos ou adicione mais itens pelo cardápio.</p>
+        <Button className="mt-6 w-full font-bold" onClick={onBackToMenu}>
+          Voltar ao cardápio
         </Button>
       </Card>
     </motion.section>
   );
 }
 
-function WaiterActions({ onWaiter, onBill }: { onWaiter: () => void; onBill: () => void }) {
-  const [sent, setSent] = useState<"WAITER" | "BILL" | null>(null);
+function WaiterScreen({
+  tableId,
+  onWaiter
+}: {
+  tableId: string;
+  onWaiter: (reason?: string) => Promise<void> | void;
+}) {
+  const [sent, setSent] = useState(false);
+  const [calling, setCalling] = useState(false);
+  const [selectedReason, setSelectedReason] = useState("Atendimento na mesa");
+
+  const quickReasons = [
+    "Atendimento na mesa",
+    "Gelo ou copos",
+    "Pratos ou talheres",
+    "Guardanapos",
+    "Dúvida do cardápio"
+  ];
+
+  async function handleCall(reason?: string) {
+    const finalReason = reason || selectedReason;
+    setCalling(true);
+    try {
+      await onWaiter(finalReason);
+      setSent(true);
+    } finally {
+      setCalling(false);
+    }
+  }
 
   return (
-    <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
-      <h1 className="mb-1 text-2xl font-semibold">Precisando de algo?</h1>
-      <p className="mb-5 text-sm text-zinc-500">Sua solicitacao sera enviada para a equipe.</p>
-      <div className="space-y-4">
-        <button
-          onClick={() => {
-            setSent("WAITER");
-            onWaiter();
-          }}
-          className="red-sheen flex w-full items-center gap-4 rounded-lg border border-red-500/20 p-5 text-left"
-        >
-          <Bell className="h-9 w-9 text-red-300" />
-          <div>
-            <p className="font-semibold">Chamar garcom</p>
-            <p className="text-sm text-zinc-400">Precisamos de atendimento na mesa.</p>
+    <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wider text-red-400">Mesa {tableId}</p>
+        <h1 className="text-2xl font-bold text-white">Chamar Garçom</h1>
+        <p className="mt-1 text-sm text-zinc-400">
+          Precisa de atendimento? Sua solicitação vai direto para a equipe no salão.
+        </p>
+      </div>
+
+      <Card className="border-red-500/30 bg-gradient-to-b from-white/[0.06] to-black/80 p-6 text-center shadow-xl">
+        <div className="relative mx-auto mb-4 grid h-24 w-24 place-items-center rounded-full border border-red-500/30 bg-red-600/10 shadow-[0_0_35px_rgba(215,25,32,0.25)]">
+          <Bell className={cn("h-12 w-12 text-red-400 transition-all", calling && "animate-bounce", sent && "text-emerald-400 scale-110")} />
+        </div>
+
+        {sent ? (
+          <div className="space-y-2">
+            <Badge className="border-emerald-500/40 bg-emerald-500/20 px-3 py-1 text-xs font-bold text-emerald-300">
+              ✓ Garçom Chamado
+            </Badge>
+            <h2 className="text-lg font-bold text-white">Equipe Notificada!</h2>
+            <p className="text-xs text-zinc-300">
+              A equipe da Mesa {tableId} já recebeu seu chamado e logo vem ao seu encontro.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleCall()}
+              disabled={calling}
+              className="mt-3 border-white/10 text-xs text-zinc-300 hover:text-white"
+            >
+              {calling ? "Chamando..." : "Chamar novamente se demorar"}
+            </Button>
           </div>
-        </button>
-        <button
-          onClick={() => {
-            setSent("BILL");
-            onBill();
-          }}
-          className="red-sheen flex w-full items-center gap-4 rounded-lg border border-red-500/20 p-5 text-left"
-        >
-          <ReceiptText className="h-9 w-9 text-red-300" />
-          <div>
-            <p className="font-semibold">Pedir conta</p>
-            <p className="text-sm text-zinc-400">Gostariamos de solicitar a conta.</p>
+        ) : (
+          <div className="space-y-4">
+            <h2 className="text-lg font-bold text-white">Chamar atendimento agora</h2>
+            <p className="text-xs text-zinc-400">
+              Clique no botão para notificar o garçom responsável pela sua mesa.
+            </p>
+
+            <Button
+              onClick={() => handleCall()}
+              disabled={calling}
+              className="w-full h-14 bg-red-600 hover:bg-red-500 text-base font-extrabold shadow-lg shadow-red-950/50"
+            >
+              <Bell className="mr-2 h-5 w-5" />
+              {calling ? "Chamando garçom..." : "Chamar Garçom"}
+            </Button>
           </div>
-        </button>
-        {sent && (
-          <Card className="border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-100">
-            {sent === "WAITER" ? "Chamado enviado para o garcom." : "Pedido de conta enviado para a equipe."}
-          </Card>
         )}
+      </Card>
+
+      <div className="space-y-2 pt-2">
+        <p className="text-xs font-semibold text-zinc-400">Motivo rápido (opcional):</p>
+        <div className="flex flex-wrap gap-2">
+          {quickReasons.map((reason) => (
+            <button
+              key={reason}
+              onClick={() => {
+                setSelectedReason(reason);
+                if (!sent) handleCall(reason);
+              }}
+              className={cn(
+                "rounded-lg border px-3 py-1.5 text-xs font-medium transition",
+                selectedReason === reason
+                  ? "border-red-500/60 bg-red-600/20 text-white"
+                  : "border-white/10 bg-white/[0.04] text-zinc-400 hover:border-white/20 hover:text-white"
+              )}
+            >
+              {reason}
+            </button>
+          ))}
+        </div>
       </div>
     </motion.section>
   );
@@ -832,17 +922,17 @@ function MusicScreen({
 
   return (
     <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
-      <h1 className="mb-1 text-2xl font-semibold">Pedido de musica</h1>
-      <p className="mb-5 text-sm text-zinc-500">Mande sua sugestao para a equipe avaliar e tocar quando puder.</p>
+      <h1 className="mb-1 text-2xl font-semibold">Pedido de música</h1>
+      <p className="mb-5 text-sm text-zinc-500">Mande sua sugestão para a equipe avaliar e tocar quando puder.</p>
       <div className="space-y-3">
         <Card className="border-white/10 bg-white/[0.045] p-4">
           <p className="text-xs uppercase tracking-[0.18em] text-red-300">Mesa {tableId}</p>
           <div className="mt-4 space-y-3">
-            <Input value={musicTitle} onChange={(event) => setMusicTitle(event.target.value)} placeholder="Nome da musica" />
+            <Input value={musicTitle} onChange={(event) => setMusicTitle(event.target.value)} placeholder="Nome da música" />
             <Input value={musicArtist} onChange={(event) => setMusicArtist(event.target.value)} placeholder="Artista ou banda" />
-            <Input value={musicNotes} onChange={(event) => setMusicNotes(event.target.value)} placeholder="Recado opcional para o dono" />
-            <Button className="w-full" onClick={sendMusicRequest} disabled={loading || !musicTitle.trim()}>
-              {loading ? "Enviando..." : "Pedir musica"}
+            <Input value={musicNotes} onChange={(event) => setMusicNotes(event.target.value)} placeholder="Recado opcional para a equipe" />
+            <Button className="w-full font-bold" onClick={sendMusicRequest} disabled={loading || !musicTitle.trim()}>
+              {loading ? "Enviando..." : "Pedir música"}
             </Button>
           </div>
         </Card>
@@ -859,7 +949,7 @@ function MusicScreen({
 
         {musicSent && (
           <Card className="border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-100">
-            Pedido enviado para a equipe.
+            Pedido de música enviado para a equipe!
           </Card>
         )}
       </div>
@@ -869,21 +959,37 @@ function MusicScreen({
 
 function CustomerNav({ active, setStep, cartCount }: { active: Step; setStep: (step: Step) => void; cartCount: number }) {
   const items = [
-    ["menu", Home, "Cardapio"],
-    ["cart", ShoppingBag, "Carrinho"],
-    ["music", Music2, "Musica"],
-    ["actions", CreditCard, "Conta"]
+    ["menu", Utensils, "Cardápio"],
+    ["cart", ShoppingBag, "Fazer Pedido"],
+    ["music", Music2, "Pedir Música"],
+    ["waiter", Bell, "Chamar Garçom"]
   ] as const;
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto grid max-w-[430px] grid-cols-4 border-t border-white/10 bg-black/85 px-3 py-3 backdrop-blur">
-      {items.map(([step, Icon, label]) => (
-        <button key={step} onClick={() => setStep(step)} className={cn("relative flex flex-col items-center gap-1 text-[11px] text-zinc-500", active === step && "text-red-500")}>
-          <Icon className="h-4 w-4" />
-          {label}
-          {step === "cart" && cartCount > 0 && <span className="absolute -top-1 right-6 grid h-4 min-w-4 place-items-center rounded-full bg-red-600 px-1 text-[10px] text-white">{cartCount}</span>}
-        </button>
-      ))}
+    <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto grid max-w-[430px] grid-cols-4 border-t border-white/10 bg-black/90 px-1.5 py-2.5 backdrop-blur-lg">
+      {items.map(([step, Icon, label]) => {
+        const isActive = active === step;
+        return (
+          <button
+            key={step}
+            onClick={() => setStep(step)}
+            className={cn(
+              "relative flex flex-col items-center justify-center gap-1 rounded-xl py-1 text-[11px] font-medium transition-colors",
+              isActive ? "text-red-500 font-bold" : "text-zinc-400 hover:text-zinc-200"
+            )}
+          >
+            <div className="relative">
+              <Icon className={cn("h-5 w-5 transition-transform", isActive && "scale-110")} />
+              {step === "cart" && cartCount > 0 && (
+                <span className="absolute -top-1.5 -right-3 grid h-4 min-w-4 place-items-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white shadow">
+                  {cartCount}
+                </span>
+              )}
+            </div>
+            <span>{label}</span>
+          </button>
+        );
+      })}
     </nav>
   );
 }

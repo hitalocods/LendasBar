@@ -31,13 +31,30 @@ type ProductsDb = {
   };
 };
 
+function getProductMockImage(name: string, categoryName?: string) {
+  const n = (name || "").toLowerCase();
+  const cat = (categoryName || "").toLowerCase();
+
+  if (n.includes("hamburguer") || cat.includes("hamburguer")) return "/products/burger_lendas.jpg";
+  if (n.includes("batata") || n.includes("suprema")) return "/products/batata_suprema.jpg";
+  if (n.includes("carne de sol") || n.includes("file") || n.includes("frango a passarinho")) return "/products/carne_sol.jpg";
+  if (n.includes("espetinho") || cat.includes("espetinho")) return "/products/espetinho_carne.jpg";
+  if (n.includes("pastel") || n.includes("calabresa") || n.includes("torresmo") || n.includes("tripinha") || n.includes("manjubinha") || n.includes("caldo")) return "/products/pastel_petisco.jpg";
+  if (cat.includes("caipirinha")) return "/products/caipirinha_limao.jpg";
+  if (cat.includes("coquetel") || cat.includes("batida") || cat.includes("drink") || n.includes("coco blue") || n.includes("margarita") || n.includes("afrodite")) return "/products/coquetel_tropical.jpg";
+  if (cat.includes("cerveja") || n.includes("cerveja") || n.includes("skol") || n.includes("brahma") || n.includes("heineken") || n.includes("amstel")) return "/products/cerveja_gelada.jpg";
+  if (cat.includes("destilado") || cat.includes("combo")) return "/products/coquetel_tropical.jpg";
+  if (cat.includes("porco") || cat.includes("petisco")) return "/products/pastel_petisco.jpg";
+  return "/products/burger_lendas.jpg";
+}
+
 function toClientProduct(product: ProductRecord) {
   return {
     id: product.id,
     name: product.name,
     desc: product.description,
     description: product.description,
-    imageUrl: product.imageUrl,
+    imageUrl: product.imageUrl || getProductMockImage(product.name, product.category?.name),
     price: product.priceCents / 100,
     consumerCode: product.consumerCode,
     isFeatured: product.isFeatured ?? false,

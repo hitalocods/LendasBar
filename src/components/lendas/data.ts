@@ -4,7 +4,7 @@ export const menuItems = [
     desc: "Blend da casa, cheddar e molho red",
     price: 29.9,
     category: "Hamburgueres",
-    imageUrl: "",
+    imageUrl: "/products/burger_lendas.jpg",
     tone: "from-red-700/30 to-zinc-950"
   },
   {
@@ -12,7 +12,7 @@ export const menuItems = [
     desc: "Batata crocante, bacon e creme cheddar",
     price: 16.9,
     category: "Porcoes",
-    imageUrl: "",
+    imageUrl: "/products/batata_suprema.jpg",
     tone: "from-yellow-500/25 to-zinc-950"
   },
   {
@@ -20,7 +20,7 @@ export const menuItems = [
     desc: "400g, macaxeira, farofa, vinagrete e molho",
     price: 75,
     category: "Petiscos",
-    imageUrl: "",
+    imageUrl: "/products/carne_sol.jpg",
     tone: "from-red-700/30 to-zinc-950"
   },
   {
@@ -28,7 +28,7 @@ export const menuItems = [
     desc: "400g, macaxeira, baiao de dois, vinagrete, farofa e molho",
     price: 90,
     category: "Petiscos",
-    imageUrl: "",
+    imageUrl: "/products/carne_sol.jpg",
     tone: "from-red-700/30 to-zinc-950"
   },
   {
@@ -36,7 +36,7 @@ export const menuItems = [
     desc: "400g, farofa, vinagrete e molho",
     price: 40,
     category: "Petiscos",
-    imageUrl: "",
+    imageUrl: "/products/pastel_petisco.jpg",
     tone: "from-orange-600/25 to-zinc-950"
   },
   {
@@ -44,7 +44,7 @@ export const menuItems = [
     desc: "400g, baiao de dois, farofa, vinagrete e molho",
     price: 55,
     category: "Petiscos",
-    imageUrl: "",
+    imageUrl: "/products/pastel_petisco.jpg",
     tone: "from-orange-600/25 to-zinc-950"
   },
   {
@@ -52,7 +52,7 @@ export const menuItems = [
     desc: "400g, dados de macaxeira, farofa e vinagrete",
     price: 50,
     category: "Petiscos",
-    imageUrl: "",
+    imageUrl: "/products/carne_sol.jpg",
     tone: "from-amber-500/25 to-zinc-950"
   },
   {
@@ -60,7 +60,7 @@ export const menuItems = [
     desc: "400g, dados de macaxeira, feijao tropeiro, baiao de dois, farofa e vinagrete",
     price: 65,
     category: "Petiscos",
-    imageUrl: "",
+    imageUrl: "/products/carne_sol.jpg",
     tone: "from-amber-500/25 to-zinc-950"
   },
   {
@@ -68,7 +68,7 @@ export const menuItems = [
     desc: "Acompanha vinagrete, farofa, feijao tropeiro e arroz",
     price: 20,
     category: "Espetinhos",
-    imageUrl: "",
+    imageUrl: "/products/espetinho_carne.jpg",
     tone: "from-red-700/25 to-zinc-950"
   },
   {
@@ -76,7 +76,7 @@ export const menuItems = [
     desc: "Acompanha vinagrete, farofa, feijao tropeiro e arroz",
     price: 15,
     category: "Espetinhos",
-    imageUrl: "",
+    imageUrl: "/products/espetinho_carne.jpg",
     tone: "from-yellow-600/20 to-zinc-950"
   },
   {
@@ -84,7 +84,7 @@ export const menuItems = [
     desc: "Acompanha vinagrete, farofa, feijao tropeiro e arroz",
     price: 20,
     category: "Espetinhos",
-    imageUrl: "",
+    imageUrl: "/products/espetinho_carne.jpg",
     tone: "from-orange-600/25 to-zinc-950"
   },
   {
@@ -92,7 +92,7 @@ export const menuItems = [
     desc: "Acompanha vinagrete, farofa, feijao tropeiro e arroz",
     price: 15,
     category: "Espetinhos",
-    imageUrl: "",
+    imageUrl: "/products/espetinho_carne.jpg",
     tone: "from-rose-600/20 to-zinc-950"
   },
   {
@@ -100,7 +100,7 @@ export const menuItems = [
     desc: "Acompanha vinagrete, farofa, feijao tropeiro e arroz",
     price: 15,
     category: "Espetinhos",
-    imageUrl: "",
+    imageUrl: "/products/espetinho_carne.jpg",
     tone: "from-stone-600/25 to-zinc-950"
   },
   {
@@ -108,7 +108,7 @@ export const menuItems = [
     desc: "400g, molho especial",
     price: 25,
     category: "Porcoes",
-    imageUrl: "",
+    imageUrl: "/products/batata_suprema.jpg",
     tone: "from-yellow-500/25 to-zinc-950"
   },
   {
@@ -116,7 +116,7 @@ export const menuItems = [
     desc: "400g, queijo, bacon, oregano e molho especial",
     price: 30,
     category: "Porcoes",
-    imageUrl: "",
+    imageUrl: "/products/batata_suprema.jpg",
     tone: "from-yellow-500/25 to-zinc-950"
   },
   {
@@ -124,7 +124,7 @@ export const menuItems = [
     desc: "400g, batata frita e molho especial",
     price: 40,
     category: "Porcoes",
-    imageUrl: "",
+    imageUrl: "/products/batata_suprema.jpg",
     tone: "from-orange-600/25 to-zinc-950"
   },
   {
@@ -132,7 +132,7 @@ export const menuItems = [
     desc: "400g, batata frita, farofa, vinagrete e molho especial",
     price: 55,
     category: "Porcoes",
-    imageUrl: "",
+    imageUrl: "/products/batata_suprema.jpg",
     tone: "from-orange-600/25 to-zinc-950"
   },
   {
@@ -140,7 +140,7 @@ export const menuItems = [
     desc: "400g, dados de macaxeira, farofa e molho",
     price: 70,
     category: "Porcoes",
-    imageUrl: "",
+    imageUrl: "/products/carne_sol.jpg",
     tone: "from-red-700/25 to-zinc-950"
   },
   {
@@ -148,7 +148,7 @@ export const menuItems = [
     desc: "400g, dados de macaxeira, baiao de dois, vinagrete e maria isabel",
     price: 85,
     category: "Porcoes",
-    imageUrl: "",
+    imageUrl: "/products/carne_sol.jpg",
     tone: "from-red-700/25 to-zinc-950"
   },
   {
@@ -156,7 +156,7 @@ export const menuItems = [
     desc: "400ml, milho, farofa, ovo de codorna",
     price: 15,
     category: "Porcoes",
-    imageUrl: "",
+    imageUrl: "/products/pastel_petisco.jpg",
     tone: "from-orange-500/20 to-zinc-950"
   },
   {
@@ -164,7 +164,7 @@ export const menuItems = [
     desc: "400ml, bacon, milho, azeitona, ovo de codorna e farofa",
     price: 20,
     category: "Porcoes",
-    imageUrl: "",
+    imageUrl: "/products/pastel_petisco.jpg",
     tone: "from-orange-500/20 to-zinc-950"
   },
   {
@@ -172,7 +172,7 @@ export const menuItems = [
     desc: "400ml, milho, farofa e ovo de codorna",
     price: 20,
     category: "Porcoes",
-    imageUrl: "",
+    imageUrl: "/products/pastel_petisco.jpg",
     tone: "from-red-600/20 to-zinc-950"
   },
   {
@@ -180,7 +180,7 @@ export const menuItems = [
     desc: "400ml, queijo, bacon, milho, azeitona, ovo de codorna e farofa",
     price: 25,
     category: "Porcoes",
-    imageUrl: "",
+    imageUrl: "/products/pastel_petisco.jpg",
     tone: "from-red-600/20 to-zinc-950"
   },
   {
@@ -188,7 +188,7 @@ export const menuItems = [
     desc: "400g, farofa, vinagrete e molho especial",
     price: 30,
     category: "Porcoes",
-    imageUrl: "",
+    imageUrl: "/products/pastel_petisco.jpg",
     tone: "from-zinc-400/20 to-zinc-950"
   },
   {
@@ -196,7 +196,7 @@ export const menuItems = [
     desc: "400g, bacon, milho, azeitona, ovo de codorna e farofa",
     price: 45,
     category: "Porcoes",
-    imageUrl: "",
+    imageUrl: "/products/pastel_petisco.jpg",
     tone: "from-zinc-400/20 to-zinc-950"
   },
   {
@@ -204,7 +204,7 @@ export const menuItems = [
     desc: "8 unidades, sabores variados: carne, queijo, frango e costela. Acompanha molho especial",
     price: 30,
     category: "Porcoes",
-    imageUrl: "",
+    imageUrl: "/products/pastel_petisco.jpg",
     tone: "from-amber-500/25 to-zinc-950"
   },
   {
@@ -212,7 +212,7 @@ export const menuItems = [
     desc: "400g, feijao tropeiro e molho especial",
     price: 45,
     category: "Porcoes",
-    imageUrl: "",
+    imageUrl: "/products/pastel_petisco.jpg",
     tone: "from-stone-600/25 to-zinc-950"
   },
   {
@@ -220,7 +220,7 @@ export const menuItems = [
     desc: "400g, feijao tropeiro, farofa, vinagrete e molho",
     price: 55,
     category: "Porcoes",
-    imageUrl: "",
+    imageUrl: "/products/pastel_petisco.jpg",
     tone: "from-stone-600/25 to-zinc-950"
   },
   {
@@ -228,7 +228,7 @@ export const menuItems = [
     desc: "300g, feijao tropeiro, farofa, vinagrete e molho",
     price: 30,
     category: "Porcoes",
-    imageUrl: "",
+    imageUrl: "/products/pastel_petisco.jpg",
     tone: "from-red-700/25 to-zinc-950"
   },
   {
@@ -236,7 +236,7 @@ export const menuItems = [
     desc: "300g, feijao tropeiro, dados de macaxeira, farofa, vinagrete e molho",
     price: 45,
     category: "Porcoes",
-    imageUrl: "",
+    imageUrl: "/products/pastel_petisco.jpg",
     tone: "from-red-700/25 to-zinc-950"
   },
   {
@@ -244,7 +244,7 @@ export const menuItems = [
     desc: "Vodka, gin, leite de coco, limao e energetico",
     price: 25,
     category: "Coqueteis",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-blue-500/25 to-zinc-950"
   },
   {
@@ -252,7 +252,7 @@ export const menuItems = [
     desc: "Tequila, licor de laranja e suco de limao",
     price: 25,
     category: "Coqueteis",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-lime-500/20 to-zinc-950"
   },
   {
@@ -260,7 +260,7 @@ export const menuItems = [
     desc: "Vodka, curacao, xarope simples, suco de limao e energetico de acai",
     price: 25,
     category: "Coqueteis",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-red-600/25 to-zinc-950"
   },
   {
@@ -268,7 +268,7 @@ export const menuItems = [
     desc: "Vodka 51, gelo e acucar",
     price: 12,
     category: "Caipirinhas",
-    imageUrl: "",
+    imageUrl: "/products/caipirinha_limao.jpg",
     tone: "from-lime-500/25 to-zinc-950"
   },
   {
@@ -276,7 +276,7 @@ export const menuItems = [
     desc: "Vodka 51, gelo e acucar",
     price: 12,
     category: "Caipirinhas",
-    imageUrl: "",
+    imageUrl: "/products/caipirinha_limao.jpg",
     tone: "from-yellow-500/25 to-zinc-950"
   },
   {
@@ -284,7 +284,7 @@ export const menuItems = [
     desc: "Vodka 51, gelo e acucar",
     price: 16,
     category: "Caipirinhas",
-    imageUrl: "",
+    imageUrl: "/products/caipirinha_limao.jpg",
     tone: "from-orange-500/25 to-zinc-950"
   },
   {
@@ -292,7 +292,7 @@ export const menuItems = [
     desc: "Vodka 51, gelo e acucar",
     price: 16,
     category: "Caipirinhas",
-    imageUrl: "",
+    imageUrl: "/products/caipirinha_limao.jpg",
     tone: "from-red-600/25 to-zinc-950"
   },
   {
@@ -300,7 +300,7 @@ export const menuItems = [
     desc: "Vodka 51, gelo e acucar",
     price: 16,
     category: "Caipirinhas",
-    imageUrl: "",
+    imageUrl: "/products/caipirinha_limao.jpg",
     tone: "from-green-600/25 to-zinc-950"
   },
   {
@@ -308,7 +308,7 @@ export const menuItems = [
     desc: "Vodka 51, gelo e acucar",
     price: 20,
     category: "Caipirinhas",
-    imageUrl: "",
+    imageUrl: "/products/caipirinha_limao.jpg",
     tone: "from-rose-500/25 to-zinc-950"
   },
   {
@@ -316,7 +316,7 @@ export const menuItems = [
     desc: "Vodka, leite condensado, gelo e acucar",
     price: 18,
     category: "Batidas de Frutas",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-lime-500/20 to-zinc-950"
   },
   {
@@ -324,7 +324,7 @@ export const menuItems = [
     desc: "Vodka, leite condensado, iogurte, gelo e acucar",
     price: 20,
     category: "Batidas de Frutas",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-red-500/20 to-zinc-950"
   },
   {
@@ -332,7 +332,7 @@ export const menuItems = [
     desc: "Vodka, leite condensado, iogurte, gelo e acucar",
     price: 20,
     category: "Batidas de Frutas",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-amber-500/20 to-zinc-950"
   },
   {
@@ -340,7 +340,7 @@ export const menuItems = [
     desc: "Vodka, leite condensado, gelo e acucar",
     price: 18,
     category: "Batidas de Frutas",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-yellow-500/20 to-zinc-950"
   },
   {
@@ -348,7 +348,7 @@ export const menuItems = [
     desc: "Vodka, leite condensado, gelo e acucar",
     price: 20,
     category: "Batidas de Frutas",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-green-500/20 to-zinc-950"
   },
   {
@@ -356,7 +356,7 @@ export const menuItems = [
     desc: "Vinho, abacaxi e leite condensado",
     price: 20,
     category: "Batidas de Frutas",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-pink-500/20 to-zinc-950"
   },
   {
@@ -364,7 +364,7 @@ export const menuItems = [
     desc: "Fruta, Skol Beats e vodka",
     price: 25,
     category: "Coqueteis",
-    imageUrl: "",
+    imageUrl: "/products/burger_lendas.jpg",
     tone: "from-red-700/30 to-zinc-950"
   },
   {
@@ -372,7 +372,7 @@ export const menuItems = [
     desc: "Keep Cooler, vodka e morango",
     price: 25,
     category: "Coqueteis",
-    imageUrl: "",
+    imageUrl: "/products/burger_lendas.jpg",
     tone: "from-red-700/30 to-zinc-950"
   },
   {
@@ -380,7 +380,7 @@ export const menuItems = [
     desc: "Gin, energetico citrico, xarope simples, maracuja e suco de limao",
     price: 25,
     category: "Coqueteis",
-    imageUrl: "",
+    imageUrl: "/products/burger_lendas.jpg",
     tone: "from-orange-500/25 to-zinc-950"
   },
   {
@@ -388,7 +388,7 @@ export const menuItems = [
     desc: "Rum, leite de coco, leite condensado e abacaxi",
     price: 25,
     category: "Coqueteis",
-    imageUrl: "",
+    imageUrl: "/products/burger_lendas.jpg",
     tone: "from-yellow-400/20 to-zinc-950"
   },
   {
@@ -396,7 +396,7 @@ export const menuItems = [
     desc: "Rum, suco de limao e abacaxi",
     price: 25,
     category: "Coqueteis",
-    imageUrl: "",
+    imageUrl: "/products/burger_lendas.jpg",
     tone: "from-amber-500/25 to-zinc-950"
   },
   {
@@ -404,7 +404,7 @@ export const menuItems = [
     desc: "Fruta, vodka e licor",
     price: 30,
     category: "Coqueteis",
-    imageUrl: "",
+    imageUrl: "/products/burger_lendas.jpg",
     tone: "from-sky-500/20 to-zinc-950"
   },
   {
@@ -412,7 +412,7 @@ export const menuItems = [
     desc: "Vodka, licor de pessego e energetico de pessego",
     price: 25,
     category: "Coqueteis",
-    imageUrl: "",
+    imageUrl: "/products/burger_lendas.jpg",
     tone: "from-orange-500/25 to-zinc-950"
   },
   {
@@ -420,7 +420,7 @@ export const menuItems = [
     desc: "Rum escuro, limao, licor de laranja e xarope de amendoas",
     price: 25,
     category: "Coqueteis",
-    imageUrl: "",
+    imageUrl: "/products/burger_lendas.jpg",
     tone: "from-amber-600/25 to-zinc-950"
   },
   {
@@ -428,7 +428,7 @@ export const menuItems = [
     desc: "Vodka, licor de morango, mix de limao e soda limonada",
     price: 20,
     category: "Drinks Especiais",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-red-600/25 to-zinc-950"
   },
   {
@@ -436,7 +436,7 @@ export const menuItems = [
     desc: "Vodka, rum, hortela e agua com gas",
     price: 20,
     category: "Drinks Especiais",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-emerald-500/25 to-zinc-950"
   },
   {
@@ -444,7 +444,7 @@ export const menuItems = [
     desc: "Vodka, licor de pessego e suco de laranja",
     price: 20,
     category: "Drinks Especiais",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-orange-500/25 to-zinc-950"
   },
   {
@@ -452,7 +452,7 @@ export const menuItems = [
     desc: "Vodka, licor de cassis, mix de limao e soda limonada",
     price: 20,
     category: "Drinks Especiais",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-purple-700/25 to-zinc-950"
   },
   {
@@ -460,7 +460,7 @@ export const menuItems = [
     desc: "Cerveja, cachaca e suco de limao",
     price: 20,
     category: "Drinks Especiais",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-yellow-500/20 to-zinc-950"
   },
   {
@@ -468,7 +468,7 @@ export const menuItems = [
     desc: "Cerveja, vodka e suco de limao",
     price: 20,
     category: "Drinks Especiais",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-orange-500/20 to-zinc-950"
   },
   {
@@ -476,7 +476,7 @@ export const menuItems = [
     desc: "Fruta, rum, suco de limao e xarope simples",
     price: 20,
     category: "Drinks Especiais",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-pink-500/20 to-zinc-950"
   },
   {
@@ -484,7 +484,7 @@ export const menuItems = [
     desc: "Gin, vermute e azeitona",
     price: 20,
     category: "Drinks Especiais",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-zinc-400/20 to-zinc-950"
   },
   {
@@ -492,7 +492,7 @@ export const menuItems = [
     desc: "Fruta, gin, hortela e agua com gas",
     price: 20,
     category: "Drinks Especiais",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-lime-500/20 to-zinc-950"
   },
   {
@@ -500,7 +500,7 @@ export const menuItems = [
     desc: "Vodka, curacao blue, mix de limao e soda limonada",
     price: 20,
     category: "Drinks Especiais",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-blue-500/25 to-zinc-950"
   },
   {
@@ -508,7 +508,7 @@ export const menuItems = [
     desc: "Vodka, licor de menta, mix de limao e soda limonada",
     price: 20,
     category: "Drinks Especiais",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-green-600/25 to-zinc-950"
   },
   {
@@ -516,7 +516,7 @@ export const menuItems = [
     desc: "Vodka, licor de laranja e grenadine",
     price: 20,
     category: "Drinks Especiais",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-rose-500/25 to-zinc-950"
   },
   {
@@ -524,7 +524,7 @@ export const menuItems = [
     desc: "Whisky, licor de cafe e soda limonada",
     price: 20,
     category: "Drinks Especiais",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-stone-700/30 to-zinc-950"
   },
   {
@@ -532,7 +532,7 @@ export const menuItems = [
     desc: "Cerveja, fruta, sal, suco de limao, maracuja e manga",
     price: 25,
     category: "Drinks Especiais",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-red-500/25 to-zinc-950"
   },
   {
@@ -540,7 +540,7 @@ export const menuItems = [
     desc: "Rum, vodka, amarula e limao",
     price: 25,
     category: "Drinks Especiais",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-yellow-500/20 to-zinc-950"
   },
   {
@@ -548,7 +548,7 @@ export const menuItems = [
     desc: "Vermute, aperol, suco de laranja e sprite",
     price: 25,
     category: "Drinks Especiais",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-orange-600/25 to-zinc-950"
   },
   {
@@ -556,7 +556,7 @@ export const menuItems = [
     desc: "Vodka, fruta e picole",
     price: 25,
     category: "Drinks Especiais",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-amber-500/25 to-zinc-950"
   },
   {
@@ -564,7 +564,7 @@ export const menuItems = [
     desc: "Bitter, gin e vermute",
     price: 25,
     category: "Drinks Especiais",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-red-700/30 to-zinc-950"
   },
   {
@@ -572,7 +572,7 @@ export const menuItems = [
     desc: "Whisky, bitter, suco de limao e hortela",
     price: 25,
     category: "Drinks Especiais",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-orange-500/25 to-zinc-950"
   },
   {
@@ -580,7 +580,7 @@ export const menuItems = [
     desc: "Conhaque, licor de cacau e leite condensado",
     price: 25,
     category: "Drinks Especiais",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-stone-600/25 to-zinc-950"
   },
   {
@@ -588,7 +588,7 @@ export const menuItems = [
     desc: "Vodka, rum de maca, limao e energetico",
     price: 25,
     category: "Drinks Especiais",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-lime-500/20 to-zinc-950"
   },
   {
@@ -596,7 +596,7 @@ export const menuItems = [
     desc: "Vodka, suco de limao e espuma de gengibre",
     price: 25,
     category: "Drinks Especiais",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-zinc-400/20 to-zinc-950"
   },
   {
@@ -604,7 +604,7 @@ export const menuItems = [
     desc: "Vodka, St Remy, maracuja e limao",
     price: 25,
     category: "Drinks Especiais",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-orange-500/25 to-zinc-950"
   },
   {
@@ -612,7 +612,7 @@ export const menuItems = [
     desc: "Rum escuro, doce de leite e limao",
     price: 25,
     category: "Drinks Especiais",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-stone-700/30 to-zinc-950"
   },
   {
@@ -620,7 +620,7 @@ export const menuItems = [
     desc: "Rum, rum de coco, laranja e abacaxi",
     price: 22,
     category: "Drinks Premium",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-red-600/25 to-zinc-950"
   },
   {
@@ -628,7 +628,7 @@ export const menuItems = [
     desc: "Cachaca, aperol, abacaxi, limao e hortela",
     price: 22,
     category: "Drinks Premium",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-yellow-500/25 to-zinc-950"
   },
   {
@@ -636,7 +636,7 @@ export const menuItems = [
     desc: "Tequila, aperol, licor de laranja e leite de coco",
     price: 27,
     category: "Drinks Premium",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-lime-500/20 to-zinc-950"
   },
   {
@@ -644,7 +644,7 @@ export const menuItems = [
     desc: "Rum, vodka, gin, licor, suco de laranja e soda limonada",
     price: 30,
     category: "Drinks Premium",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-orange-500/25 to-zinc-950"
   },
   {
@@ -652,7 +652,7 @@ export const menuItems = [
     desc: "Cerveja 600ml",
     price: 12,
     category: "Cervejas 600ml",
-    imageUrl: "",
+    imageUrl: "/products/cerveja_gelada.jpg",
     tone: "from-red-600/20 to-zinc-950"
   },
   {
@@ -660,7 +660,7 @@ export const menuItems = [
     desc: "Cerveja 600ml",
     price: 12,
     category: "Cervejas 600ml",
-    imageUrl: "",
+    imageUrl: "/products/cerveja_gelada.jpg",
     tone: "from-yellow-500/20 to-zinc-950"
   },
   {
@@ -668,7 +668,7 @@ export const menuItems = [
     desc: "Cerveja 600ml",
     price: 15,
     category: "Cervejas 600ml",
-    imageUrl: "",
+    imageUrl: "/products/cerveja_gelada.jpg",
     tone: "from-emerald-500/20 to-zinc-950"
   },
   {
@@ -676,7 +676,7 @@ export const menuItems = [
     desc: "Dose de destilado",
     price: 5,
     category: "Destilados",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-stone-600/25 to-zinc-950"
   },
   {
@@ -684,7 +684,7 @@ export const menuItems = [
     desc: "Dose de destilado",
     price: 5,
     category: "Destilados",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-stone-600/25 to-zinc-950"
   },
   {
@@ -692,7 +692,7 @@ export const menuItems = [
     desc: "Dose de destilado",
     price: 6,
     category: "Destilados",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-stone-600/25 to-zinc-950"
   },
   {
@@ -700,7 +700,7 @@ export const menuItems = [
     desc: "Dose de destilado",
     price: 6,
     category: "Destilados",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-yellow-600/20 to-zinc-950"
   },
   {
@@ -708,7 +708,7 @@ export const menuItems = [
     desc: "Dose de destilado",
     price: 12,
     category: "Destilados",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-red-700/25 to-zinc-950"
   },
   {
@@ -716,7 +716,7 @@ export const menuItems = [
     desc: "Dose de destilado",
     price: 7,
     category: "Destilados",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-amber-700/25 to-zinc-950"
   },
   {
@@ -724,7 +724,7 @@ export const menuItems = [
     desc: "Dose de whisky",
     price: 15,
     category: "Destilados",
-    imageUrl: "",
+    imageUrl: "/products/coquetel_tropical.jpg",
     tone: "from-orange-700/25 to-zinc-950"
   }
 ];
