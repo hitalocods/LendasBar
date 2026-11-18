@@ -242,10 +242,10 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
 
   return (
     <main className="min-h-screen bg-background text-foreground" style={toThemeStyle({ ...restaurant, background: "#050505" })}>
-      <div className="mx-auto min-h-screen max-w-[430px] bg-[#07080a] shadow-[0_0_80px_rgba(0,0,0,0.7)]">
+      <div className="mx-auto min-h-screen max-w-md md:max-w-4xl lg:max-w-6xl bg-[#07080a] shadow-[0_0_80px_rgba(0,0,0,0.7)] border-x border-white/[0.04]">
         <div className="relative flex min-h-screen flex-col overflow-hidden">
-          <div className="absolute inset-x-0 top-0 h-44 bg-[radial-gradient(circle_at_50%_0%,rgba(215,25,32,0.28),transparent_70%)]" />
-          <div className="relative flex-1 px-4 pb-28 pt-5">
+          <div className="absolute inset-x-0 top-0 h-56 bg-[radial-gradient(ellipse_at_50%_0%,rgba(215,25,32,0.28),transparent_70%)]" />
+          <div className="relative flex-1 px-4 sm:px-6 md:px-8 pb-32 pt-5 md:pt-7">
             {step === "welcome" && <WelcomeScreen name={name} setName={setName} onEnter={enterTable} tableId={tableId} restaurantName={restaurant.name} />}
             {step === "menu" && (
               <MenuScreen
@@ -329,19 +329,24 @@ function WelcomeScreen({
   restaurantName: string;
 }) {
   return (
-    <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} className="flex min-h-[calc(100vh-2.5rem)] flex-col justify-center">
+    <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-md flex-col justify-center py-6">
       <div className="mx-auto mb-8 h-36 w-36 overflow-hidden rounded-full border border-red-500/50 bg-black shadow-[0_0_44px_rgba(215,25,32,0.32)]">
         <Image src="/lendas-logo.png" alt="LENDAS 2018" width={144} height={144} className="h-full w-full object-cover" priority />
       </div>
       <div className="text-center">
         <p className="text-sm text-zinc-400">Bem-vindo ao</p>
-        <h1 className="mt-2 text-5xl font-black tracking-wide text-white">{restaurantName.split(" ")[0]}</h1>
+        <h1 className="mt-2 text-4xl sm:text-5xl font-black tracking-wide text-white">{restaurantName.split(" ")[0]}</h1>
         <p className="mt-1 text-xl font-semibold text-red-500">2018</p>
         <p className="mt-6 text-sm text-zinc-400">Mesa {tableId}</p>
       </div>
       <div className="mt-8 space-y-3">
-        <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Qual seu nome?" />
-        <Button className="w-full" disabled={!name.trim()} onClick={onEnter}>
+        <Input
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="Qual seu nome?"
+          className="h-12 text-base"
+        />
+        <Button className="h-12 w-full text-base font-bold" disabled={!name.trim()} onClick={onEnter}>
           Entrar na mesa
         </Button>
       </div>
@@ -399,11 +404,11 @@ function MenuScreen({
 
   return (
     <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
-      <header className="mb-4 flex items-center justify-between">
+      <header className="mb-5 flex items-center justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-red-400">Mesa {tableId} · {connectedUsers} {connectedUsers === 1 ? "pessoa" : "pessoas"}</p>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold">Olá, {customerName} 👋</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold">Olá, {customerName} 👋</h1>
             {isHost && (
               <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-[10px] px-2 py-0.5 font-bold">
                 👑 Líder
@@ -412,13 +417,13 @@ function MenuScreen({
           </div>
           <button onClick={onReset} className="mt-0.5 text-xs text-zinc-400 hover:text-red-300 underline">Trocar nome</button>
         </div>
-        <div className="relative h-12 w-12 overflow-hidden rounded-full border border-red-500/40 shadow-lg">
+        <div className="relative h-12 w-12 sm:h-14 sm:w-14 shrink-0 overflow-hidden rounded-full border border-red-500/40 shadow-lg">
           <Image src="/lendas-logo.png" alt="LENDAS 2018" fill className="object-cover" />
         </div>
       </header>
 
       {/* Barra de Busca Inteligente */}
-      <div className="mb-4 flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.05] px-3 py-1 shadow-inner">
+      <div className="mb-5 flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.05] px-3.5 py-1.5 shadow-inner">
         <Search className="h-4 w-4 text-red-400 shrink-0" />
         <Input
           className="border-0 bg-transparent px-0 text-sm focus:ring-0 placeholder:text-zinc-500"
@@ -432,21 +437,21 @@ function MenuScreen({
       {!searchQuery && (
         <Card
           onClick={() => promoProduct && onSelectProduct(promoProduct)}
-          className="mb-5 overflow-hidden border-red-500/40 bg-gradient-to-r from-red-950/80 via-black to-zinc-950 p-4 text-white shadow-xl relative cursor-pointer hover:border-red-400 transition"
+          className="mb-6 overflow-hidden border-red-500/40 bg-gradient-to-r from-red-950/80 via-black to-zinc-950 p-4 sm:p-5 text-white shadow-xl relative cursor-pointer hover:border-red-400 transition"
         >
-          <div className="relative z-10 flex items-center justify-between gap-3">
+          <div className="relative z-10 flex items-center justify-between gap-4">
             <div>
               <Badge className="mb-1.5 border-amber-500/50 bg-amber-500/20 text-amber-300 font-extrabold text-[10px] uppercase tracking-wider">
                 🏷️ Promoção do Dia
               </Badge>
-              <h2 className="text-base font-bold text-white">{promoProduct ? promoProduct.name : "Combo Happy Hour Lendas 🍻"}</h2>
-              <p className="text-xs text-zinc-300 mt-0.5">{promoProduct ? promoProduct.desc : "Pedindo bebidas ou porções, ganhe desconto especial na comanda."}</p>
+              <h2 className="text-base sm:text-lg font-bold text-white">{promoProduct ? promoProduct.name : "Combo Happy Hour Lendas 🍻"}</h2>
+              <p className="text-xs sm:text-sm text-zinc-300 mt-0.5">{promoProduct ? promoProduct.desc : "Pedindo bebidas ou porções, ganhe desconto especial na comanda."}</p>
             </div>
             <div className="text-right shrink-0">
-              <span className="text-xs text-zinc-400 line-through">
+              <span className="text-xs sm:text-sm text-zinc-400 line-through">
                 {promoProduct ? formatCurrency(promoProduct.price) : "R$ 35,00"}
               </span>
-              <p className="text-lg font-black text-emerald-400">
+              <p className="text-xl sm:text-2xl font-black text-emerald-400">
                 {promoProduct && (promoProduct as { promoPrice?: number | null }).promoPrice
                   ? formatCurrency((promoProduct as { promoPrice?: number }).promoPrice!)
                   : "R$ 29,90"}
@@ -458,20 +463,20 @@ function MenuScreen({
 
       {/* Carrossel de Mais Pedidos da Casa */}
       {!searchQuery && (
-        <div className="mb-5 space-y-2">
+        <div className="mb-6 space-y-2.5">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold tracking-wide text-zinc-200 flex items-center gap-1.5">
+            <h2 className="text-sm sm:text-base font-bold tracking-wide text-zinc-200 flex items-center gap-1.5">
               <span>🔥</span> Mais Pedidos da Casa
             </h2>
-            <span className="text-[11px] text-zinc-500 font-medium">Os campeões do bar</span>
+            <span className="text-[11px] sm:text-xs text-zinc-500 font-medium">Os campeões do bar</span>
           </div>
 
-          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
+          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none sm:grid sm:grid-cols-2 md:grid-cols-4 sm:overflow-visible">
             {popularProducts.map((item) => (
               <div
                 key={`pop-${item.name}`}
                 onClick={() => onSelectProduct(item)}
-                className="group relative flex w-36 shrink-0 flex-col justify-between rounded-xl border border-red-500/30 bg-gradient-to-b from-white/[0.06] to-black p-2.5 transition cursor-pointer select-none shadow-md hover:border-red-400"
+                className="group relative flex w-36 sm:w-auto shrink-0 sm:shrink flex-col justify-between rounded-xl border border-red-500/30 bg-gradient-to-b from-white/[0.06] to-black p-2.5 sm:p-3 transition cursor-pointer select-none shadow-md hover:border-red-400 hover:shadow-red-950/20"
               >
                 <div>
                   <div className="relative mb-2 aspect-square w-full overflow-hidden rounded-lg bg-zinc-900">
@@ -480,16 +485,16 @@ function MenuScreen({
                     ) : (
                       <Utensils className="m-auto h-8 w-8 text-red-400" />
                     )}
-                    <Badge className="absolute left-1 top-1 bg-red-600/90 text-[9px] px-1 py-0 font-extrabold text-white">
+                    <Badge className="absolute left-1.5 top-1.5 bg-red-600/90 text-[9px] px-1.5 py-0 font-extrabold text-white">
                       🔥 Top
                     </Badge>
                   </div>
-                  <p className="truncate text-xs font-bold text-white">{item.name}</p>
-                  <p className="line-clamp-1 text-[10px] text-zinc-400 mt-0.5">{item.desc}</p>
+                  <p className="truncate text-xs sm:text-sm font-bold text-white">{item.name}</p>
+                  <p className="line-clamp-1 text-[10px] sm:text-xs text-zinc-400 mt-0.5">{item.desc}</p>
                 </div>
-                <div className="mt-2 flex items-center justify-between border-t border-white/10 pt-1.5">
-                  <span className="text-xs font-extrabold text-emerald-400">{formatCurrency(item.price)}</span>
-                  <span className="grid h-6 w-6 place-items-center rounded-full bg-red-600 text-white text-xs font-bold shadow">
+                <div className="mt-2.5 flex items-center justify-between border-t border-white/10 pt-2">
+                  <span className="text-xs sm:text-sm font-extrabold text-emerald-400">{formatCurrency(item.price)}</span>
+                  <span className="grid h-6 w-6 sm:h-7 sm:w-7 place-items-center rounded-full bg-red-600 text-white text-xs font-bold shadow hover:bg-red-500">
                     +
                   </span>
                 </div>
@@ -500,13 +505,13 @@ function MenuScreen({
       )}
 
       {/* Categorias Filtro */}
-      <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
+      <div className="mb-5 flex gap-2 overflow-x-auto pb-1 sm:flex-wrap">
         {categories.map((item) => (
           <button
             key={item}
             onClick={() => setCategory(item)}
             className={cn(
-              "shrink-0 rounded-lg border border-white/10 bg-white/[0.05] px-3.5 py-2 text-xs font-bold transition text-zinc-300",
+              "shrink-0 rounded-lg border border-white/10 bg-white/[0.05] px-3.5 py-2 text-xs sm:text-sm font-bold transition text-zinc-300",
               category === item && "border-red-500/60 bg-red-600 text-white shadow-md"
             )}
           >
@@ -516,14 +521,14 @@ function MenuScreen({
       </div>
 
       {/* Lista Principal de Produtos */}
-      <div className="space-y-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4">
         {displayedProducts.length === 0 && (
-          <p className="py-8 text-center text-xs text-zinc-500">Nenhum produto encontrado para a busca.</p>
+          <p className="col-span-full py-8 text-center text-xs sm:text-sm text-zinc-500">Nenhum produto encontrado para a busca.</p>
         )}
         {displayedProducts.map((item) => (
           <button key={item.name} onClick={() => onSelectProduct(item)} className="w-full text-left">
-            <Card className="flex items-center gap-3 border-white/10 bg-white/[0.045] p-3 transition hover:border-red-500/40">
-              <div className={cn("relative grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-lg bg-gradient-to-br", item.tone)}>
+            <Card className="h-full flex items-center gap-3.5 border-white/10 bg-white/[0.045] p-3 sm:p-3.5 transition hover:border-red-500/40 hover:bg-white/[0.07]">
+              <div className={cn("relative grid h-20 w-20 sm:h-22 sm:w-22 shrink-0 place-items-center overflow-hidden rounded-xl bg-gradient-to-br", item.tone)}>
                 {item.imageUrl ? (
                   <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
                 ) : (
@@ -531,12 +536,12 @@ function MenuScreen({
                 )}
               </div>
               <div className="min-w-0 flex-1">
-                <h2 className="truncate text-sm font-semibold text-white">{item.name}</h2>
+                <h2 className="truncate text-sm sm:text-base font-semibold text-white">{item.name}</h2>
                 <p className="line-clamp-2 text-xs text-zinc-400 mt-0.5">{item.desc}</p>
-                <p className="mt-2 text-sm font-bold text-emerald-400">{formatCurrency(item.price)}</p>
+                <p className="mt-2 text-sm sm:text-base font-bold text-emerald-400">{formatCurrency(item.price)}</p>
               </div>
-              <span className="grid h-9 w-9 place-items-center rounded-full bg-red-600 text-white shadow-md hover:bg-red-500">
-                <Plus className="h-4 w-4" />
+              <span className="grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-full bg-red-600 text-white shadow-md hover:bg-red-500 shrink-0">
+                <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
               </span>
             </Card>
           </button>
@@ -544,9 +549,9 @@ function MenuScreen({
       </div>
 
       {cartCount > 0 && (
-        <Button className="fixed inset-x-4 bottom-24 z-20 mx-auto max-w-[398px] justify-between font-bold shadow-2xl" onClick={onCart}>
+        <Button className="fixed inset-x-4 bottom-20 md:bottom-24 z-20 mx-auto max-w-md md:max-w-xl lg:max-w-2xl justify-between font-bold shadow-2xl h-12 md:h-14 text-sm md:text-base px-5" onClick={onCart}>
           <span className="flex items-center gap-2">
-            <ShoppingBag className="h-4 w-4" />
+            <ShoppingBag className="h-4 w-4 md:h-5 md:w-5" />
             Ver carrinho da mesa
           </span>
           <span className="rounded bg-black/30 px-2 py-0.5 text-xs font-mono">{cartCount} {cartCount === 1 ? "item" : "itens"}</span>
@@ -570,34 +575,34 @@ function ProductModal({
   onAdd: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-40 grid place-items-end bg-black/70 px-3 pb-3 backdrop-blur-sm">
-      <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="w-full max-w-[430px] overflow-hidden rounded-2xl border border-white/10 bg-[#101114] shadow-2xl">
-        <div className={cn("relative grid h-56 place-items-center overflow-hidden bg-gradient-to-br", product.tone)}>
+    <div className="fixed inset-0 z-40 grid place-items-end md:place-items-center bg-black/75 p-0 md:p-6 backdrop-blur-sm">
+      <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="w-full max-w-md md:max-w-lg overflow-hidden rounded-t-3xl md:rounded-3xl border border-white/10 bg-[#101114] shadow-2xl">
+        <div className={cn("relative grid h-56 md:h-64 place-items-center overflow-hidden bg-gradient-to-br", product.tone)}>
           {product.imageUrl ? (
             <Image src={product.imageUrl} alt={product.name} fill className="object-cover" />
           ) : (
-            <Utensils className="h-20 w-20 text-red-100" />
+            <Utensils className="h-20 w-20 md:h-24 md:w-24 text-red-100" />
           )}
         </div>
-        <div className="p-5">
-          <h2 className="text-2xl font-semibold">{product.name}</h2>
-          <p className="mt-2 text-sm text-zinc-400">{product.desc}</p>
-          <p className="mt-4 text-lg font-semibold text-red-400">{formatCurrency(product.price)}</p>
-          <div className="mt-5 flex items-center justify-between">
-            <span className="text-sm font-semibold">Quantidade</span>
-            <div className="flex items-center gap-4 rounded-lg bg-white/[0.05] p-1">
-              <Button variant="secondary" size="icon" onClick={() => setQuantity(Math.max(1, quantity - 1))}>
+        <div className="p-5 md:p-6">
+          <h2 className="text-2xl md:text-3xl font-bold">{product.name}</h2>
+          <p className="mt-2 text-sm md:text-base text-zinc-400">{product.desc}</p>
+          <p className="mt-4 text-xl font-bold text-emerald-400">{formatCurrency(product.price)}</p>
+          <div className="mt-6 flex items-center justify-between border-t border-white/10 pt-4">
+            <span className="text-sm md:text-base font-semibold">Quantidade</span>
+            <div className="flex items-center gap-4 rounded-xl bg-white/[0.05] p-1.5 border border-white/10">
+              <Button variant="secondary" size="icon" className="h-9 w-9" onClick={() => setQuantity(Math.max(1, quantity - 1))}>
                 <Minus className="h-4 w-4" />
               </Button>
-              <span className="w-6 text-center font-mono">{quantity}</span>
-              <Button variant="secondary" size="icon" onClick={() => setQuantity(quantity + 1)}>
+              <span className="w-8 text-center font-mono font-bold text-base">{quantity}</span>
+              <Button variant="secondary" size="icon" className="h-9 w-9" onClick={() => setQuantity(quantity + 1)}>
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
           </div>
-          <div className="mt-5 grid grid-cols-[0.35fr_1fr] gap-3">
-            <Button variant="secondary" onClick={onClose}>Voltar</Button>
-            <Button onClick={onAdd}>Adicionar ao carrinho</Button>
+          <div className="mt-6 grid grid-cols-[0.35fr_1fr] gap-3">
+            <Button variant="secondary" className="h-12 text-sm md:text-base" onClick={onClose}>Voltar</Button>
+            <Button className="h-12 text-sm md:text-base font-bold" onClick={onAdd}>Adicionar ao carrinho</Button>
           </div>
         </div>
       </motion.div>
@@ -639,14 +644,14 @@ function SharedCart({
 
   return (
     <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
-      <div className="mb-4">
+      <div className="mb-5">
         <p className="text-xs font-semibold uppercase tracking-wider text-red-400">Fazer Pedido</p>
-        <h1 className="text-2xl font-bold text-white">Carrinho da Mesa</h1>
-        <p className="mt-0.5 text-xs text-zinc-400">Revise os itens e envie para a cozinha ou bar.</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-white">Carrinho da Mesa</h1>
+        <p className="mt-0.5 text-xs sm:text-sm text-zinc-400">Revise os itens e envie para a cozinha ou bar.</p>
       </div>
 
       {!hasItems ? (
-        <Card className="border-white/10 bg-white/[0.04] p-8 text-center">
+        <Card className="border-white/10 bg-white/[0.04] p-8 text-center max-w-lg mx-auto">
           <ShoppingBag className="mx-auto mb-3 h-12 w-12 text-zinc-600" />
           <h2 className="text-base font-bold text-white">Carrinho vazio</h2>
           <p className="mt-1 mb-5 text-xs text-zinc-400">
@@ -659,7 +664,7 @@ function SharedCart({
           )}
         </Card>
       ) : (
-        <>
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
           <div className="space-y-3">
             {realGroups.map((group) => (
               <Card key={group.customerName} className="border-white/10 bg-white/[0.045] p-4">
@@ -702,18 +707,18 @@ function SharedCart({
               </Card>
             ))}
           </div>
-          <div className="mt-5 rounded-xl border border-white/10 bg-black/60 p-4 shadow-xl">
+          <div className="lg:sticky lg:top-6 rounded-xl border border-white/10 bg-black/60 p-5 shadow-xl">
             <div className="flex items-center justify-between text-sm text-zinc-300">
               <span className="font-medium">Total dos pedidos da mesa</span>
-              <span className="text-xl font-bold text-red-400">{formatCurrency(tableBillTotal)}</span>
+              <span className="text-2xl font-bold text-red-400">{formatCurrency(tableBillTotal)}</span>
             </div>
 
             {isHost ? (
-              <Button className="mt-4 w-full h-12 text-sm font-bold shadow-lg" disabled={cart.length === 0 || isSending} onClick={onSend}>
+              <Button className="mt-5 w-full h-12 text-sm font-bold shadow-lg" disabled={cart.length === 0 || isSending} onClick={onSend}>
                 {isSending ? "Enviando pedido..." : "Enviar pedido da mesa"}
               </Button>
             ) : (
-              <Button className="mt-4 w-full h-12 font-medium bg-zinc-800 text-zinc-400 border border-white/10 opacity-90 cursor-not-allowed" disabled>
+              <Button className="mt-5 w-full h-12 font-medium bg-zinc-800 text-zinc-400 border border-white/10 opacity-90 cursor-not-allowed" disabled>
                 👑 Aguardando {hostName || "o Líder"} enviar o pedido
               </Button>
             )}
@@ -721,7 +726,7 @@ function SharedCart({
               <p className="mt-3 text-center text-xs text-amber-200">{sendFeedback}</p>
             )}
           </div>
-        </>
+        </div>
       )}
     </motion.section>
   );
@@ -743,13 +748,13 @@ function Line({ label, value, onRemove }: { label: string; value: number; onRemo
 
 function OrderSentScreen({ onBackToMenu }: { onBackToMenu: () => void }) {
   return (
-    <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
-      <h1 className="mb-1 text-2xl font-semibold">Pedido enviado!</h1>
+    <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} className="max-w-xl mx-auto py-4">
+      <h1 className="mb-1 text-2xl sm:text-3xl font-semibold">Pedido enviado!</h1>
       <p className="mb-5 text-sm text-zinc-500">Recebemos seu pedido e a equipe do bar já começou a preparar.</p>
-      <Card className="border-red-500/20 bg-white/[0.045] p-6 text-center">
-        <p className="text-2xl font-bold text-red-400">Pedido enviado com sucesso</p>
-        <p className="mt-2 text-xs text-zinc-400">Acompanhe seus pedidos ou adicione mais itens pelo cardápio.</p>
-        <Button className="mt-6 w-full font-bold" onClick={onBackToMenu}>
+      <Card className="border-red-500/20 bg-white/[0.045] p-6 sm:p-8 text-center">
+        <p className="text-2xl sm:text-3xl font-bold text-red-400">Pedido enviado com sucesso</p>
+        <p className="mt-2 text-xs sm:text-sm text-zinc-400">Acompanhe seus pedidos ou adicione mais itens pelo cardápio.</p>
+        <Button className="mt-6 w-full font-bold h-12" onClick={onBackToMenu}>
           Voltar ao cardápio
         </Button>
       </Card>
@@ -788,16 +793,16 @@ function WaiterScreen({
   }
 
   return (
-    <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+    <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} className="max-w-xl mx-auto space-y-4 py-2">
       <div>
         <p className="text-xs font-semibold uppercase tracking-wider text-red-400">Mesa {tableId}</p>
-        <h1 className="text-2xl font-bold text-white">Chamar Garçom</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-white">Chamar Garçom</h1>
         <p className="mt-1 text-sm text-zinc-400">
           Precisa de atendimento? Sua solicitação vai direto para a equipe no salão.
         </p>
       </div>
 
-      <Card className="border-red-500/30 bg-gradient-to-b from-white/[0.06] to-black/80 p-6 text-center shadow-xl">
+      <Card className="border-red-500/30 bg-gradient-to-b from-white/[0.06] to-black/80 p-6 sm:p-8 text-center shadow-xl">
         <div className="relative mx-auto mb-4 grid h-24 w-24 place-items-center rounded-full border border-red-500/30 bg-red-600/10 shadow-[0_0_35px_rgba(215,25,32,0.25)]">
           <Bell className={cn("h-12 w-12 text-red-400 transition-all", calling && "animate-bounce", sent && "text-emerald-400 scale-110")} />
         </div>
@@ -807,8 +812,8 @@ function WaiterScreen({
             <Badge className="border-emerald-500/40 bg-emerald-500/20 px-3 py-1 text-xs font-bold text-emerald-300">
               ✓ Garçom Chamado
             </Badge>
-            <h2 className="text-lg font-bold text-white">Equipe Notificada!</h2>
-            <p className="text-xs text-zinc-300">
+            <h2 className="text-lg sm:text-xl font-bold text-white">Equipe Notificada!</h2>
+            <p className="text-xs sm:text-sm text-zinc-300">
               A equipe da Mesa {tableId} já recebeu seu chamado e logo vem ao seu encontro.
             </p>
             <Button
@@ -816,15 +821,15 @@ function WaiterScreen({
               size="sm"
               onClick={() => handleCall()}
               disabled={calling}
-              className="mt-3 border-white/10 text-xs text-zinc-300 hover:text-white"
+              className="mt-3 border-white/10 text-xs sm:text-sm text-zinc-300 hover:text-white"
             >
               {calling ? "Chamando..." : "Chamar novamente se demorar"}
             </Button>
           </div>
         ) : (
           <div className="space-y-4">
-            <h2 className="text-lg font-bold text-white">Chamar atendimento agora</h2>
-            <p className="text-xs text-zinc-400">
+            <h2 className="text-lg sm:text-xl font-bold text-white">Chamar atendimento agora</h2>
+            <p className="text-xs sm:text-sm text-zinc-400">
               Clique no botão para notificar o garçom responsável pela sua mesa.
             </p>
 
@@ -851,7 +856,7 @@ function WaiterScreen({
                 if (!sent) handleCall(reason);
               }}
               className={cn(
-                "rounded-lg border px-3 py-1.5 text-xs font-medium transition",
+                "rounded-lg border px-3 py-1.5 text-xs sm:text-sm font-medium transition",
                 selectedReason === reason
                   ? "border-red-500/60 bg-red-600/20 text-white"
                   : "border-white/10 bg-white/[0.04] text-zinc-400 hover:border-white/20 hover:text-white"
@@ -921,28 +926,28 @@ function MusicScreen({
   }
 
   return (
-    <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
-      <h1 className="mb-1 text-2xl font-semibold">Pedido de música</h1>
+    <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} className="max-w-xl mx-auto py-2">
+      <h1 className="mb-1 text-2xl sm:text-3xl font-semibold">Pedido de música</h1>
       <p className="mb-5 text-sm text-zinc-500">Mande sua sugestão para a equipe avaliar e tocar quando puder.</p>
       <div className="space-y-3">
-        <Card className="border-white/10 bg-white/[0.045] p-4">
+        <Card className="border-white/10 bg-white/[0.045] p-5 sm:p-6">
           <p className="text-xs uppercase tracking-[0.18em] text-red-300">Mesa {tableId}</p>
           <div className="mt-4 space-y-3">
-            <Input value={musicTitle} onChange={(event) => setMusicTitle(event.target.value)} placeholder="Nome da música" />
-            <Input value={musicArtist} onChange={(event) => setMusicArtist(event.target.value)} placeholder="Artista ou banda" />
-            <Input value={musicNotes} onChange={(event) => setMusicNotes(event.target.value)} placeholder="Recado opcional para a equipe" />
-            <Button className="w-full font-bold" onClick={sendMusicRequest} disabled={loading || !musicTitle.trim()}>
+            <Input value={musicTitle} onChange={(event) => setMusicTitle(event.target.value)} placeholder="Nome da música" className="h-11 sm:h-12 text-sm sm:text-base" />
+            <Input value={musicArtist} onChange={(event) => setMusicArtist(event.target.value)} placeholder="Artista ou banda" className="h-11 sm:h-12 text-sm sm:text-base" />
+            <Input value={musicNotes} onChange={(event) => setMusicNotes(event.target.value)} placeholder="Recado opcional para a equipe" className="h-11 sm:h-12 text-sm sm:text-base" />
+            <Button className="w-full font-bold h-12 text-sm sm:text-base" onClick={sendMusicRequest} disabled={loading || !musicTitle.trim()}>
               {loading ? "Enviando..." : "Pedir música"}
             </Button>
           </div>
         </Card>
 
-        <Card className="border-white/10 bg-black/45 p-4">
+        <Card className="border-white/10 bg-black/45 p-4 sm:p-5">
           <div className="flex items-center gap-3">
-            <Music2 className="h-5 w-5 text-red-300" />
+            <Music2 className="h-5 w-5 text-red-300 shrink-0" />
             <div>
-              <p className="font-semibold">Como funciona</p>
-              <p className="text-sm text-zinc-500">O pedido vai para o painel interno e a equipe marca quando tocar.</p>
+              <p className="font-semibold text-sm sm:text-base">Como funciona</p>
+              <p className="text-xs sm:text-sm text-zinc-500">O pedido vai para o painel interno e a equipe marca quando tocar.</p>
             </div>
           </div>
         </Card>
@@ -966,7 +971,7 @@ function CustomerNav({ active, setStep, cartCount }: { active: Step; setStep: (s
   ] as const;
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto grid max-w-[430px] grid-cols-4 border-t border-white/10 bg-black/90 px-1.5 py-2.5 backdrop-blur-lg">
+    <nav className="fixed inset-x-0 bottom-0 md:bottom-4 z-30 mx-auto grid max-w-md md:max-w-xl lg:max-w-2xl grid-cols-4 border-t md:border border-white/10 bg-black/95 px-2 py-2.5 md:py-3 backdrop-blur-xl md:rounded-2xl md:shadow-[0_10px_40px_rgba(0,0,0,0.8)]">
       {items.map(([step, Icon, label]) => {
         const isActive = active === step;
         return (
@@ -974,12 +979,12 @@ function CustomerNav({ active, setStep, cartCount }: { active: Step; setStep: (s
             key={step}
             onClick={() => setStep(step)}
             className={cn(
-              "relative flex flex-col items-center justify-center gap-1 rounded-xl py-1 text-[11px] font-medium transition-colors",
+              "relative flex flex-col items-center justify-center gap-1 rounded-xl py-1 text-[11px] md:text-xs font-medium transition-colors",
               isActive ? "text-red-500 font-bold" : "text-zinc-400 hover:text-zinc-200"
             )}
           >
             <div className="relative">
-              <Icon className={cn("h-5 w-5 transition-transform", isActive && "scale-110")} />
+              <Icon className={cn("h-5 w-5 md:h-6 md:w-6 transition-transform", isActive && "scale-110")} />
               {step === "cart" && cartCount > 0 && (
                 <span className="absolute -top-1.5 -right-3 grid h-4 min-w-4 place-items-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white shadow">
                   {cartCount}

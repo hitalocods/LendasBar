@@ -140,11 +140,11 @@ export default async function LoginPage({
 
   return (
     <main className="noise grid min-h-screen place-items-center bg-background p-4 text-foreground">
-      <Card className="w-full max-w-sm border-white/10 bg-black/70 p-6 shadow-2xl backdrop-blur-md">
-        <div className="relative mx-auto mb-5 h-20 w-20 overflow-hidden rounded-full border border-red-500/40 shadow-inner">
+      <Card className="w-full max-w-sm sm:max-w-md border-white/10 bg-black/70 p-6 sm:p-8 shadow-2xl backdrop-blur-md">
+        <div className="relative mx-auto mb-5 h-20 w-20 sm:h-24 sm:w-24 overflow-hidden rounded-full border border-red-500/40 shadow-inner">
           <Image src="/lendas-logo.png" alt="LENDAS 2018" fill className="object-cover" priority />
         </div>
-        <h1 className="text-center text-2xl font-bold tracking-tight text-white">Acesso ao Painel</h1>
+        <h1 className="text-center text-2xl sm:text-3xl font-bold tracking-tight text-white">Acesso ao Painel</h1>
         <p className="mt-1 text-center text-sm text-zinc-400">Digite a senha para acessar o sistema.</p>
 
         <form action={login} className="mt-6 space-y-4">
@@ -157,7 +157,7 @@ export default async function LoginPage({
               autoComplete="current-password"
               autoFocus
               required
-              className="border-white/15 bg-zinc-900/80 text-white placeholder:text-zinc-500 focus:border-red-500"
+              className="h-11 sm:h-12 border-white/15 bg-zinc-900/80 text-white placeholder:text-zinc-500 focus:border-red-500 text-base"
             />
           </div>
 
@@ -167,7 +167,7 @@ export default async function LoginPage({
             </p>
           )}
 
-          <Button className="w-full bg-red-600 font-bold text-white hover:bg-red-700 transition-colors" type="submit">
+          <Button className="w-full h-11 sm:h-12 bg-red-600 font-bold text-white hover:bg-red-700 transition-colors text-base" type="submit">
             Entrar no Sistema
           </Button>
         </form>

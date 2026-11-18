@@ -48,20 +48,26 @@ export function AdminPanel() {
   }
 
   return (
-    <main className="noise min-h-screen bg-background p-4 text-foreground lg:p-6">
-      <div className="mx-auto grid max-w-7xl gap-5 lg:grid-cols-[220px_1fr]">
-        <aside className="flex flex-col justify-between rounded-lg border border-white/10 bg-black/55 p-4 min-h-[calc(100vh-3rem)]">
+    <main className="noise min-h-screen bg-background p-3 sm:p-4 text-foreground lg:p-6">
+      <div className="mx-auto grid max-w-7xl gap-5 md:grid-cols-[220px_1fr] lg:grid-cols-[240px_1fr]">
+        <aside className="flex flex-col justify-between rounded-xl border border-white/10 bg-black/55 p-4 md:min-h-[calc(100vh-3rem)] md:sticky md:top-6">
           <div>
-            <div className="mb-8 flex items-center gap-3">
-              <div className="relative h-12 w-12 overflow-hidden rounded-full border border-red-500/40">
-                <Image src="/lendas-logo.png" alt="LENDAS 2018" fill sizes="48px" className="object-cover" />
+            <div className="mb-5 md:mb-8 flex items-center justify-between md:justify-start gap-3">
+              <div className="flex items-center gap-3">
+                <div className="relative h-11 w-11 md:h-12 md:w-12 overflow-hidden rounded-full border border-red-500/40">
+                  <Image src="/lendas-logo.png" alt="LENDAS 2018" fill sizes="48px" className="object-cover" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold">LENDAS 2018</p>
+                  <p className="text-xs text-zinc-500">Proprietario</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-semibold">LENDAS 2018</p>
-                <p className="text-xs text-zinc-500">Proprietario</p>
-              </div>
+              <Button variant="ghost" size="sm" onClick={handleLogout} className="md:hidden text-red-300 hover:bg-red-500/10 text-xs">
+                <LogOut className="mr-1 h-3.5 w-3.5" />
+                Sair
+              </Button>
             </div>
-            <nav className="space-y-1 text-sm text-zinc-400">
+            <nav className="grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-col gap-1 text-sm text-zinc-400">
               {[
                 [Boxes, "Cardapio e Produtos", "cardapio"],
                 [Grid2X2, "Categorias", "categorias"],
@@ -74,17 +80,17 @@ export function AdminPanel() {
                   key={label as string}
                   onClick={() => setActiveView(view as AdminView)}
                   className={cn(
-                    "flex w-full items-center gap-2 rounded-md px-3 py-2 text-left transition hover:bg-white/[0.06]",
-                    activeView === view && "bg-red-600 text-white"
+                    "flex w-full items-center gap-2 rounded-md px-3 py-2 text-left transition text-xs sm:text-sm hover:bg-white/[0.06]",
+                    activeView === view && "bg-red-600 text-white font-medium"
                   )}
                 >
-                  <Icon className="h-4 w-4" />
-                  {label as string}
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{label as string}</span>
                 </button>
               ))}
             </nav>
           </div>
-          <Button variant="ghost" onClick={handleLogout} className="mt-6 w-full justify-start text-red-300 hover:bg-red-500/10">
+          <Button variant="ghost" onClick={handleLogout} className="mt-6 hidden md:flex w-full justify-start text-red-300 hover:bg-red-500/10">
             <LogOut className="mr-2 h-4 w-4" />
             Sair
           </Button>
@@ -419,7 +425,7 @@ function TablesAndQr() {
   const billCount = displayTables.filter((t) => t.status === "WAITING_BILL").length;
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
+    <div className="grid gap-5 lg:grid-cols-[1fr_340px] xl:grid-cols-[1fr_360px]">
       <Card className="border-white/10 bg-black/45 p-4">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
           <div>
@@ -469,7 +475,7 @@ function TablesAndQr() {
         </div>
 
         {/* Grid de Mesas Estilo Consumer */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {filteredTables.map((table) => {
             const isOccupied = Boolean(table.sessionId);
             const isWaitingBill = table.status === "WAITING_BILL";
@@ -622,7 +628,7 @@ function MusicRequestsManager() {
   const playedRequests = requests.filter((request) => request.status === "PLAYED");
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
+    <div className="grid gap-5 lg:grid-cols-[1fr_320px] xl:grid-cols-[1fr_360px]">
       <Card className="border-white/10 bg-black/45 p-4">
         <div className="mb-4 flex items-center justify-between">
           <div>
@@ -968,7 +974,7 @@ function MenuManager() {
   );
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[390px_1fr]">
+    <div className="grid gap-5 lg:grid-cols-[340px_1fr] xl:grid-cols-[390px_1fr]">
       <Card className="border-white/10 bg-black/45 p-0">
         <div className="border-b border-white/10 p-4">
           <p className="text-xs uppercase tracking-[0.18em] text-red-300">Produto</p>
@@ -1174,7 +1180,7 @@ function CategoriesManager() {
   }
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[360px_1fr]">
+    <div className="grid gap-5 lg:grid-cols-[320px_1fr] xl:grid-cols-[360px_1fr]">
       <Card className="border-white/10 bg-black/45 p-4">
         <h2 className="text-lg font-semibold mb-1">Nova Categoria</h2>
         <p className="text-xs text-zinc-500 mb-4">Adicione categorias para organizar o cardapio.</p>
@@ -1400,7 +1406,7 @@ function WaitersManager() {
   }
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
+    <div className="grid gap-5 md:grid-cols-2">
       <Card className="border-white/10 bg-black/45 p-4">
         <h2 className="text-lg font-semibold mb-1">Cadastrar Garçom da Equipe</h2>
         <p className="text-xs text-zinc-500 mb-4">Adicione garçons para vinculá-los às mesas do salão.</p>
