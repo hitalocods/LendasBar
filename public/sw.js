@@ -1,4 +1,4 @@
-const CACHE_NAME = "lendas-v2";
+const CACHE_NAME = "lendas-v3";
 const ASSETS_TO_CACHE = [
   "/",
   "/lendas-logo.png",

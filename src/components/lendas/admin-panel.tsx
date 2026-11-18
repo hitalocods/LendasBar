@@ -67,7 +67,7 @@ export function AdminPanel() {
                 Sair
               </Button>
             </div>
-            <nav className="grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-col gap-1 text-sm text-zinc-400">
+            <nav className="grid grid-cols-2 min-[520px]:grid-cols-3 md:flex md:flex-col gap-1 text-sm text-zinc-400">
               {[
                 [Boxes, "Cardapio e Produtos", "cardapio"],
                 [Grid2X2, "Categorias", "categorias"],
@@ -475,7 +475,7 @@ function TablesAndQr() {
         </div>
 
         {/* Grid de Mesas Estilo Consumer */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 min-[520px]:grid-cols-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {filteredTables.map((table) => {
             const isOccupied = Boolean(table.sessionId);
             const isWaitingBill = table.status === "WAITING_BILL";

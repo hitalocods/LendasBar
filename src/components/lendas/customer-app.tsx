@@ -242,10 +242,10 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
 
   return (
     <main className="min-h-screen bg-background text-foreground" style={toThemeStyle({ ...restaurant, background: "#050505" })}>
-      <div className="mx-auto min-h-screen max-w-md md:max-w-4xl lg:max-w-6xl bg-[#07080a] shadow-[0_0_80px_rgba(0,0,0,0.7)] border-x border-white/[0.04]">
+      <div className="mx-auto min-h-screen w-full max-w-7xl bg-[#07080a] shadow-[0_0_80px_rgba(0,0,0,0.7)] xl:border-x xl:border-white/[0.04]">
         <div className="relative flex min-h-screen flex-col overflow-hidden">
           <div className="absolute inset-x-0 top-0 h-56 bg-[radial-gradient(ellipse_at_50%_0%,rgba(215,25,32,0.28),transparent_70%)]" />
-          <div className="relative flex-1 px-4 sm:px-6 md:px-8 pb-32 pt-5 md:pt-7">
+          <div className="relative flex-1 px-4 min-[520px]:px-6 md:px-8 lg:px-10 pb-28 pt-4 min-[520px]:pt-6">
             {step === "welcome" && <WelcomeScreen name={name} setName={setName} onEnter={enterTable} tableId={tableId} restaurantName={restaurant.name} />}
             {step === "menu" && (
               <MenuScreen
@@ -404,54 +404,65 @@ function MenuScreen({
 
   return (
     <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
-      <header className="mb-5 flex items-center justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-red-400">Mesa {tableId} · {connectedUsers} {connectedUsers === 1 ? "pessoa" : "pessoas"}</p>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl sm:text-3xl font-bold">Olá, {customerName} 👋</h1>
-            {isHost && (
-              <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-[10px] px-2 py-0.5 font-bold">
-                👑 Líder
-              </Badge>
-            )}
+      <header className="mb-4 flex flex-col gap-3 min-[520px]:flex-row min-[520px]:items-center min-[520px]:justify-between">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-red-400">
+              Mesa {tableId} · {connectedUsers} {connectedUsers === 1 ? "pessoa" : "pessoas"}
+            </p>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl md:text-3xl font-bold">Olá, {customerName} 👋</h1>
+              {isHost && (
+                <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-[10px] px-2 py-0.5 font-bold">
+                  👑 Líder
+                </Badge>
+              )}
+            </div>
+            <button onClick={onReset} className="mt-0.5 text-xs text-zinc-400 hover:text-red-300 underline">
+              Trocar nome
+            </button>
           </div>
-          <button onClick={onReset} className="mt-0.5 text-xs text-zinc-400 hover:text-red-300 underline">Trocar nome</button>
+          <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border border-red-500/40 shadow-lg min-[520px]:hidden">
+            <Image src="/lendas-logo.png" alt="LENDAS 2018" fill className="object-cover" />
+          </div>
         </div>
-        <div className="relative h-12 w-12 sm:h-14 sm:w-14 shrink-0 overflow-hidden rounded-full border border-red-500/40 shadow-lg">
-          <Image src="/lendas-logo.png" alt="LENDAS 2018" fill className="object-cover" />
+
+        {/* Barra de Busca Inteligente + Logo em Tablets/Desktop */}
+        <div className="flex items-center gap-3 min-[520px]:flex-1 min-[520px]:max-w-md min-[520px]:justify-end">
+          <div className="flex flex-1 items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.05] px-3.5 py-1.5 shadow-inner">
+            <Search className="h-4 w-4 text-red-400 shrink-0" />
+            <Input
+              className="h-8 border-0 bg-transparent px-0 text-sm focus:ring-0 placeholder:text-zinc-500"
+              placeholder="O que deseja pedir hoje? Ex: Cerveja, Porção..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <div className="relative hidden min-[520px]:block h-12 w-12 md:h-14 md:w-14 shrink-0 overflow-hidden rounded-full border border-red-500/40 shadow-lg">
+            <Image src="/lendas-logo.png" alt="LENDAS 2018" fill className="object-cover" />
+          </div>
         </div>
       </header>
-
-      {/* Barra de Busca Inteligente */}
-      <div className="mb-5 flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.05] px-3.5 py-1.5 shadow-inner">
-        <Search className="h-4 w-4 text-red-400 shrink-0" />
-        <Input
-          className="border-0 bg-transparent px-0 text-sm focus:ring-0 placeholder:text-zinc-500"
-          placeholder="O que deseja pedir hoje? Ex: Cerveja, Hamburguer..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-      </div>
 
       {/* Banner de Promoção do Dia / Happy Hour */}
       {!searchQuery && (
         <Card
           onClick={() => promoProduct && onSelectProduct(promoProduct)}
-          className="mb-6 overflow-hidden border-red-500/40 bg-gradient-to-r from-red-950/80 via-black to-zinc-950 p-4 sm:p-5 text-white shadow-xl relative cursor-pointer hover:border-red-400 transition"
+          className="mb-4 overflow-hidden border-red-500/40 bg-gradient-to-r from-red-950/80 via-black to-zinc-950 p-3.5 min-[520px]:p-4 text-white shadow-xl relative cursor-pointer hover:border-red-400 transition"
         >
           <div className="relative z-10 flex items-center justify-between gap-4">
             <div>
-              <Badge className="mb-1.5 border-amber-500/50 bg-amber-500/20 text-amber-300 font-extrabold text-[10px] uppercase tracking-wider">
+              <Badge className="mb-1 border-amber-500/50 bg-amber-500/20 text-amber-300 font-extrabold text-[10px] uppercase tracking-wider">
                 🏷️ Promoção do Dia
               </Badge>
-              <h2 className="text-base sm:text-lg font-bold text-white">{promoProduct ? promoProduct.name : "Combo Happy Hour Lendas 🍻"}</h2>
-              <p className="text-xs sm:text-sm text-zinc-300 mt-0.5">{promoProduct ? promoProduct.desc : "Pedindo bebidas ou porções, ganhe desconto especial na comanda."}</p>
+              <h2 className="text-base min-[520px]:text-lg font-bold text-white">{promoProduct ? promoProduct.name : "Combo Happy Hour Lendas 🍻"}</h2>
+              <p className="text-xs min-[520px]:text-sm text-zinc-300 mt-0.5">{promoProduct ? promoProduct.desc : "Pedindo bebidas ou porções, ganhe desconto especial na comanda."}</p>
             </div>
             <div className="text-right shrink-0">
-              <span className="text-xs sm:text-sm text-zinc-400 line-through">
+              <span className="text-xs min-[520px]:text-sm text-zinc-400 line-through">
                 {promoProduct ? formatCurrency(promoProduct.price) : "R$ 35,00"}
               </span>
-              <p className="text-xl sm:text-2xl font-black text-emerald-400">
+              <p className="text-xl min-[520px]:text-2xl font-black text-emerald-400">
                 {promoProduct && (promoProduct as { promoPrice?: number | null }).promoPrice
                   ? formatCurrency((promoProduct as { promoPrice?: number }).promoPrice!)
                   : "R$ 29,90"}
@@ -461,42 +472,42 @@ function MenuScreen({
         </Card>
       )}
 
-      {/* Carrossel de Mais Pedidos da Casa */}
+      {/* Carrossel / Grid de Mais Pedidos da Casa */}
       {!searchQuery && (
-        <div className="mb-6 space-y-2.5">
+        <div className="mb-5 space-y-2">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm sm:text-base font-bold tracking-wide text-zinc-200 flex items-center gap-1.5">
+            <h2 className="text-sm min-[520px]:text-base font-bold tracking-wide text-zinc-200 flex items-center gap-1.5">
               <span>🔥</span> Mais Pedidos da Casa
             </h2>
-            <span className="text-[11px] sm:text-xs text-zinc-500 font-medium">Os campeões do bar</span>
+            <span className="text-[11px] min-[520px]:text-xs text-zinc-500 font-medium">Os campeões do bar</span>
           </div>
 
-          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none sm:grid sm:grid-cols-2 md:grid-cols-4 sm:overflow-visible">
+          <div className="flex gap-2.5 overflow-x-auto pb-1.5 scrollbar-none min-[520px]:grid min-[520px]:grid-cols-2 xl:grid-cols-4 min-[520px]:gap-3 min-[520px]:overflow-visible">
             {popularProducts.map((item) => (
               <div
                 key={`pop-${item.name}`}
                 onClick={() => onSelectProduct(item)}
-                className="group relative flex w-36 sm:w-auto shrink-0 sm:shrink flex-col justify-between rounded-xl border border-red-500/30 bg-gradient-to-b from-white/[0.06] to-black p-2.5 sm:p-3 transition cursor-pointer select-none shadow-md hover:border-red-400 hover:shadow-red-950/20"
+                className="group relative flex w-60 min-[520px]:w-auto shrink-0 min-[520px]:shrink items-center gap-3 rounded-xl border border-red-500/30 bg-gradient-to-r from-white/[0.06] to-black p-2.5 transition cursor-pointer select-none shadow-md hover:border-red-400 hover:bg-white/[0.08]"
               >
-                <div>
-                  <div className="relative mb-2 aspect-square w-full overflow-hidden rounded-lg bg-zinc-900">
-                    {item.imageUrl ? (
-                      <Image src={item.imageUrl} alt={item.name} fill className="object-cover group-hover:scale-105 transition" />
-                    ) : (
-                      <Utensils className="m-auto h-8 w-8 text-red-400" />
-                    )}
-                    <Badge className="absolute left-1.5 top-1.5 bg-red-600/90 text-[9px] px-1.5 py-0 font-extrabold text-white">
-                      🔥 Top
-                    </Badge>
-                  </div>
-                  <p className="truncate text-xs sm:text-sm font-bold text-white">{item.name}</p>
-                  <p className="line-clamp-1 text-[10px] sm:text-xs text-zinc-400 mt-0.5">{item.desc}</p>
+                <div className="relative h-16 w-16 min-[520px]:h-18 min-[520px]:w-18 shrink-0 overflow-hidden rounded-lg bg-zinc-900">
+                  {item.imageUrl ? (
+                    <Image src={item.imageUrl} alt={item.name} fill className="object-cover group-hover:scale-105 transition" />
+                  ) : (
+                    <Utensils className="m-auto h-7 w-7 text-red-400" />
+                  )}
+                  <Badge className="absolute left-1 top-1 bg-red-600/95 text-[8px] px-1 py-0 font-extrabold text-white">
+                    🔥 Top
+                  </Badge>
                 </div>
-                <div className="mt-2.5 flex items-center justify-between border-t border-white/10 pt-2">
-                  <span className="text-xs sm:text-sm font-extrabold text-emerald-400">{formatCurrency(item.price)}</span>
-                  <span className="grid h-6 w-6 sm:h-7 sm:w-7 place-items-center rounded-full bg-red-600 text-white text-xs font-bold shadow hover:bg-red-500">
-                    +
-                  </span>
+                <div className="min-w-0 flex-1">
+                  <p className="line-clamp-2 text-xs min-[520px]:text-sm font-bold text-white leading-tight">{item.name}</p>
+                  <p className="line-clamp-1 text-[10px] min-[520px]:text-xs text-zinc-400 mt-0.5">{item.desc}</p>
+                  <div className="mt-1.5 flex items-center justify-between gap-2">
+                    <span className="text-xs min-[520px]:text-sm font-extrabold text-emerald-400">{formatCurrency(item.price)}</span>
+                    <span className="grid h-6 w-6 min-[520px]:h-7 min-[520px]:w-7 shrink-0 place-items-center rounded-full bg-red-600 text-white text-xs font-bold shadow hover:bg-red-500">
+                      +
+                    </span>
+                  </div>
                 </div>
               </div>
             ))}
@@ -505,14 +516,14 @@ function MenuScreen({
       )}
 
       {/* Categorias Filtro */}
-      <div className="mb-5 flex gap-2 overflow-x-auto pb-1 sm:flex-wrap">
+      <div className="mb-4 flex gap-2 overflow-x-auto pb-1 min-[520px]:flex-wrap min-[520px]:overflow-visible">
         {categories.map((item) => (
           <button
             key={item}
             onClick={() => setCategory(item)}
             className={cn(
-              "shrink-0 rounded-lg border border-white/10 bg-white/[0.05] px-3.5 py-2 text-xs sm:text-sm font-bold transition text-zinc-300",
-              category === item && "border-red-500/60 bg-red-600 text-white shadow-md"
+              "shrink-0 rounded-lg border border-white/10 bg-white/[0.05] px-3.5 py-2 text-xs min-[520px]:text-sm font-bold transition text-zinc-300 hover:bg-white/10",
+              category === item && "border-red-500/60 bg-red-600 text-white shadow-md hover:bg-red-600"
             )}
           >
             {item}
@@ -521,37 +532,41 @@ function MenuScreen({
       </div>
 
       {/* Lista Principal de Produtos */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4">
+      <div className="grid grid-cols-1 min-[520px]:grid-cols-2 xl:grid-cols-3 gap-3 min-[520px]:gap-3.5">
         {displayedProducts.length === 0 && (
-          <p className="col-span-full py-8 text-center text-xs sm:text-sm text-zinc-500">Nenhum produto encontrado para a busca.</p>
+          <p className="col-span-full py-8 text-center text-xs min-[520px]:text-sm text-zinc-500">Nenhum produto encontrado para a busca.</p>
         )}
         {displayedProducts.map((item) => (
           <button key={item.name} onClick={() => onSelectProduct(item)} className="w-full text-left">
-            <Card className="h-full flex items-center gap-3.5 border-white/10 bg-white/[0.045] p-3 sm:p-3.5 transition hover:border-red-500/40 hover:bg-white/[0.07]">
-              <div className={cn("relative grid h-20 w-20 sm:h-22 sm:w-22 shrink-0 place-items-center overflow-hidden rounded-xl bg-gradient-to-br", item.tone)}>
+            <Card className="h-full flex items-center gap-3 border-white/10 bg-white/[0.045] p-3 min-[520px]:p-3.5 transition hover:border-red-500/40 hover:bg-white/[0.07]">
+              <div className={cn("relative grid h-20 w-20 min-[520px]:h-22 min-[520px]:w-22 shrink-0 place-items-center overflow-hidden rounded-xl bg-gradient-to-br", item.tone)}>
                 {item.imageUrl ? (
                   <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
                 ) : (
                   <Utensils className="h-8 w-8 text-red-100" />
                 )}
               </div>
-              <div className="min-w-0 flex-1">
-                <h2 className="truncate text-sm sm:text-base font-semibold text-white">{item.name}</h2>
-                <p className="line-clamp-2 text-xs text-zinc-400 mt-0.5">{item.desc}</p>
-                <p className="mt-2 text-sm sm:text-base font-bold text-emerald-400">{formatCurrency(item.price)}</p>
+              <div className="min-w-0 flex-1 flex flex-col justify-between">
+                <div>
+                  <h2 className="line-clamp-2 text-sm min-[520px]:text-base font-semibold text-white leading-snug">{item.name}</h2>
+                  <p className="line-clamp-2 text-xs text-zinc-400 mt-0.5">{item.desc}</p>
+                </div>
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <p className="text-sm min-[520px]:text-base font-bold text-emerald-400">{formatCurrency(item.price)}</p>
+                  <span className="grid h-8 w-8 min-[520px]:h-9 min-[520px]:w-9 place-items-center rounded-full bg-red-600 text-white shadow-md hover:bg-red-500 shrink-0">
+                    <Plus className="h-4 w-4" />
+                  </span>
+                </div>
               </div>
-              <span className="grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-full bg-red-600 text-white shadow-md hover:bg-red-500 shrink-0">
-                <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
-              </span>
             </Card>
           </button>
         ))}
       </div>
 
       {cartCount > 0 && (
-        <Button className="fixed inset-x-4 bottom-20 md:bottom-24 z-20 mx-auto max-w-md md:max-w-xl lg:max-w-2xl justify-between font-bold shadow-2xl h-12 md:h-14 text-sm md:text-base px-5" onClick={onCart}>
+        <Button className="fixed inset-x-4 min-[520px]:inset-x-6 bottom-20 z-20 mx-auto max-w-xl justify-between font-bold shadow-2xl h-12 min-[520px]:h-14 text-sm min-[520px]:text-base px-5" onClick={onCart}>
           <span className="flex items-center gap-2">
-            <ShoppingBag className="h-4 w-4 md:h-5 md:w-5" />
+            <ShoppingBag className="h-4 w-4 min-[520px]:h-5 min-[520px]:w-5" />
             Ver carrinho da mesa
           </span>
           <span className="rounded bg-black/30 px-2 py-0.5 text-xs font-mono">{cartCount} {cartCount === 1 ? "item" : "itens"}</span>
@@ -575,21 +590,21 @@ function ProductModal({
   onAdd: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-40 grid place-items-end md:place-items-center bg-black/75 p-0 md:p-6 backdrop-blur-sm">
-      <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="w-full max-w-md md:max-w-lg overflow-hidden rounded-t-3xl md:rounded-3xl border border-white/10 bg-[#101114] shadow-2xl">
-        <div className={cn("relative grid h-56 md:h-64 place-items-center overflow-hidden bg-gradient-to-br", product.tone)}>
+    <div className="fixed inset-0 z-40 grid place-items-end min-[520px]:place-items-center bg-black/75 p-0 min-[520px]:p-6 backdrop-blur-sm">
+      <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="w-full max-w-lg overflow-hidden rounded-t-3xl min-[520px]:rounded-3xl border border-white/10 bg-[#101114] shadow-2xl">
+        <div className={cn("relative grid h-52 min-[520px]:h-64 place-items-center overflow-hidden bg-gradient-to-br", product.tone)}>
           {product.imageUrl ? (
             <Image src={product.imageUrl} alt={product.name} fill className="object-cover" />
           ) : (
-            <Utensils className="h-20 w-20 md:h-24 md:w-24 text-red-100" />
+            <Utensils className="h-20 w-20 min-[520px]:h-24 min-[520px]:w-24 text-red-100" />
           )}
         </div>
-        <div className="p-5 md:p-6">
-          <h2 className="text-2xl md:text-3xl font-bold">{product.name}</h2>
-          <p className="mt-2 text-sm md:text-base text-zinc-400">{product.desc}</p>
+        <div className="p-5 min-[520px]:p-6">
+          <h2 className="text-2xl min-[520px]:text-3xl font-bold">{product.name}</h2>
+          <p className="mt-2 text-sm min-[520px]:text-base text-zinc-400">{product.desc}</p>
           <p className="mt-4 text-xl font-bold text-emerald-400">{formatCurrency(product.price)}</p>
           <div className="mt-6 flex items-center justify-between border-t border-white/10 pt-4">
-            <span className="text-sm md:text-base font-semibold">Quantidade</span>
+            <span className="text-sm min-[520px]:text-base font-semibold">Quantidade</span>
             <div className="flex items-center gap-4 rounded-xl bg-white/[0.05] p-1.5 border border-white/10">
               <Button variant="secondary" size="icon" className="h-9 w-9" onClick={() => setQuantity(Math.max(1, quantity - 1))}>
                 <Minus className="h-4 w-4" />
@@ -601,8 +616,8 @@ function ProductModal({
             </div>
           </div>
           <div className="mt-6 grid grid-cols-[0.35fr_1fr] gap-3">
-            <Button variant="secondary" className="h-12 text-sm md:text-base" onClick={onClose}>Voltar</Button>
-            <Button className="h-12 text-sm md:text-base font-bold" onClick={onAdd}>Adicionar ao carrinho</Button>
+            <Button variant="secondary" className="h-12 text-sm min-[520px]:text-base" onClick={onClose}>Voltar</Button>
+            <Button className="h-12 text-sm min-[520px]:text-base font-bold" onClick={onAdd}>Adicionar ao carrinho</Button>
           </div>
         </div>
       </motion.div>
@@ -664,7 +679,7 @@ function SharedCart({
           )}
         </Card>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
+        <div className="grid grid-cols-1 min-[700px]:grid-cols-[1fr_320px] lg:grid-cols-[1fr_360px] gap-6 items-start">
           <div className="space-y-3">
             {realGroups.map((group) => (
               <Card key={group.customerName} className="border-white/10 bg-white/[0.045] p-4">
@@ -971,30 +986,32 @@ function CustomerNav({ active, setStep, cartCount }: { active: Step; setStep: (s
   ] as const;
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 md:bottom-4 z-30 mx-auto grid max-w-md md:max-w-xl lg:max-w-2xl grid-cols-4 border-t md:border border-white/10 bg-black/95 px-2 py-2.5 md:py-3 backdrop-blur-xl md:rounded-2xl md:shadow-[0_10px_40px_rgba(0,0,0,0.8)]">
-      {items.map(([step, Icon, label]) => {
-        const isActive = active === step;
-        return (
-          <button
-            key={step}
-            onClick={() => setStep(step)}
-            className={cn(
-              "relative flex flex-col items-center justify-center gap-1 rounded-xl py-1 text-[11px] md:text-xs font-medium transition-colors",
-              isActive ? "text-red-500 font-bold" : "text-zinc-400 hover:text-zinc-200"
-            )}
-          >
-            <div className="relative">
-              <Icon className={cn("h-5 w-5 md:h-6 md:w-6 transition-transform", isActive && "scale-110")} />
-              {step === "cart" && cartCount > 0 && (
-                <span className="absolute -top-1.5 -right-3 grid h-4 min-w-4 place-items-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white shadow">
-                  {cartCount}
-                </span>
+    <nav className="fixed inset-x-0 bottom-0 z-30 w-full border-t border-white/10 bg-black/95 backdrop-blur-xl">
+      <div className="mx-auto grid max-w-4xl grid-cols-4 px-2 py-2.5 min-[520px]:py-3">
+        {items.map(([step, Icon, label]) => {
+          const isActive = active === step;
+          return (
+            <button
+              key={step}
+              onClick={() => setStep(step)}
+              className={cn(
+                "relative flex flex-col items-center justify-center gap-1 rounded-xl py-1 text-[11px] min-[520px]:text-xs font-medium transition-colors",
+                isActive ? "text-red-500 font-bold" : "text-zinc-400 hover:text-zinc-200"
               )}
-            </div>
-            <span>{label}</span>
-          </button>
-        );
-      })}
+            >
+              <div className="relative">
+                <Icon className={cn("h-5 w-5 min-[520px]:h-6 min-[520px]:w-6 transition-transform", isActive && "scale-110")} />
+                {step === "cart" && cartCount > 0 && (
+                  <span className="absolute -top-1.5 -right-3 grid h-4 min-w-4 place-items-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white shadow">
+                    {cartCount}
+                  </span>
+                )}
+              </div>
+              <span>{label}</span>
+            </button>
+          );
+        })}
+      </div>
     </nav>
   );
 }
