@@ -197,6 +197,11 @@ export function WaiterTables({ waiterName }: { waiterName: string }) {
           </div>
 
           <div className="flex items-center gap-1.5">
+            <Button size="sm" variant="outline" asChild className="border-white/15 text-xs text-zinc-300 h-9 font-semibold hover:text-white">
+              <Link href={"/admin" as any}>
+                Painel Dono
+              </Link>
+            </Button>
             <Button
               size="sm"
               variant="ghost"

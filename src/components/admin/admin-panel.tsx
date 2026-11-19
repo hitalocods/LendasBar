@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { Boxes, ChefHat, Grid2X2, LayoutDashboard, LogOut, Music2, Printer, UserPlus } from "lucide-react";
+import Link from "next/link";
+import { Boxes, ChefHat, Grid2X2, LayoutDashboard, LogOut, Music2, Printer, UserPlus, Utensils } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -67,6 +68,14 @@ export function AdminPanel() {
                 </button>
               ))}
             </nav>
+            <div className="pt-4 border-t border-white/10 mt-4">
+              <Button asChild variant="outline" className="w-full justify-start text-amber-300 border-amber-500/30 hover:bg-amber-500/10 text-xs font-bold gap-2 h-10">
+                <Link href={"/garcom" as any}>
+                  <Utensils className="h-4 w-4 text-amber-400" />
+                  Ir ao Painel do Garçom
+                </Link>
+              </Button>
+            </div>
           </div>
           <Button variant="ghost" onClick={handleLogout} className="mt-6 hidden md:flex w-full justify-start text-red-300 hover:bg-red-500/10">
             <LogOut className="mr-2 h-4 w-4" />

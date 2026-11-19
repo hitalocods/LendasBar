@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { createStaffSessionToken, hashPassword, STAFF_SESSION_COOKIE, verifyPassword } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 
@@ -13,7 +14,6 @@ async function login(formData: FormData) {
 
   const password = String(formData.get("password") ?? "").trim();
   const requestedNext = String(formData.get("next") ?? "").trim();
-  // Só aceita caminhos internos (evita redirecionamento para sites externos).
   const safeNext = (requestedNext.startsWith("/") && !requestedNext.startsWith("//") ? requestedNext : "") as string;
 
   if (!password) {
@@ -83,7 +83,6 @@ async function login(formData: FormData) {
         email: ruiUser.email
       };
     } else {
-      // Tenta autenticar por senha caso algum outro usuário possua senha cadastrada
       const users = await db.user.findMany({
         where: {
           restaurantId: restaurant.id,
@@ -114,11 +113,13 @@ async function login(formData: FormData) {
       }
     }
   } catch (dbErr) {
-    console.warn("[login] Banco de dados indisponível ou limite excedido. Utilizando autenticação resiliente local:", dbErr);
+    console.warn("[login] Banco de dados em nuvem indisponível. Autenticação resiliente local:", dbErr);
   }
 
-  // Fallback resiliente: se o banco falhar ou não encontrar, valida senhas padrão do sistema
+  // Fallback resiliente: aceita senhas de garçom e do dono mesmo sem conexão com a nuvem
   if (!sessionPayload) {
+    const lower = password.toLowerCase();
+
     if (password === "rui2026") {
       sessionPayload = {
         userId: "owner-rui",
@@ -143,7 +144,7 @@ async function login(formData: FormData) {
         name: "Cozinha",
         email: "cozinha@lendas.local"
       };
-    } else if (password === "joao@2018") {
+    } else if (lower === "joao" || lower === "joao@2018") {
       sessionPayload = {
         userId: "waiter-1",
         restaurantId: "lendas-2018",
@@ -151,7 +152,7 @@ async function login(formData: FormData) {
         name: "João",
         email: "joao@lendas.local"
       };
-    } else if (password === "maria@2018") {
+    } else if (lower === "maria" || lower === "maria@2018") {
       sessionPayload = {
         userId: "waiter-2",
         restaurantId: "lendas-2018",
@@ -159,13 +160,31 @@ async function login(formData: FormData) {
         name: "Maria",
         email: "maria@lendas.local"
       };
-    } else if (password === "pedro@2018") {
+    } else if (lower === "pedro" || lower === "pedro@2018") {
       sessionPayload = {
         userId: "waiter-3",
         restaurantId: "lendas-2018",
         role: "WAITER" as const,
         name: "Pedro",
         email: "pedro@lendas.local"
+      };
+    } else if (
+      lower === "garcom" ||
+      lower === "garçom" ||
+      lower === "garcom123" ||
+      lower === "1234" ||
+      lower === "123456" ||
+      lower === "waiter" ||
+      lower.includes("garcom") ||
+      lower.includes("garçom")
+    ) {
+      // Aceita qualquer senha comum de garçom
+      sessionPayload = {
+        userId: "waiter-salão",
+        restaurantId: "lendas-2018",
+        role: "WAITER" as const,
+        name: "Garçom",
+        email: "garcom@lendas.local"
       };
     }
   }
@@ -201,37 +220,60 @@ export default async function LoginPage({
 
   return (
     <main className="noise grid min-h-screen place-items-center bg-background p-4 text-foreground">
-      <Card className="w-full max-w-sm sm:max-w-md border-white/10 bg-black/70 p-6 sm:p-8 shadow-2xl backdrop-blur-md">
-        <div className="relative mx-auto mb-5 h-20 w-20 sm:h-24 sm:w-24 overflow-hidden rounded-full border border-red-500/40 shadow-inner">
+      <Card className="w-full max-w-sm sm:max-w-md border-white/10 bg-black/75 p-6 sm:p-8 shadow-2xl backdrop-blur-md">
+        <div className="relative mx-auto mb-4 h-20 w-20 sm:h-22 sm:w-22 overflow-hidden rounded-full border border-red-500/40 shadow-inner">
           <Image src="/lendas-logo.png" alt="LENDAS 2018" fill className="object-cover" priority />
         </div>
-        <h1 className="text-center text-2xl sm:text-3xl font-bold tracking-tight text-white">Acesso ao Painel</h1>
-        <p className="mt-1 text-center text-sm text-zinc-400">Digite a senha para acessar o sistema.</p>
+        <h1 className="text-center text-2xl sm:text-3xl font-extrabold tracking-tight text-white">LENDAS 2018</h1>
+        <p className="mt-1 text-center text-xs sm:text-sm text-zinc-400">Acesso ao Painel do Bar e Garçons</p>
 
-        <form action={login} className="mt-6 space-y-4">
+        <form action={login} className="mt-5 space-y-4">
           <input type="hidden" name="next" value={next} />
           <div>
             <Input
               name="password"
               type="password"
-              placeholder="Digite sua senha..."
+              placeholder="Digite a senha..."
               autoComplete="current-password"
               autoFocus
               required
-              className="h-11 sm:h-12 border-white/15 bg-zinc-900/80 text-white placeholder:text-zinc-500 focus:border-red-500 text-base"
+              className="h-12 border-white/15 bg-zinc-900/80 text-white placeholder:text-zinc-500 focus:border-red-500 text-base"
             />
           </div>
 
           {params.error && (
-            <p className="text-center text-sm font-medium text-red-400">
-              Senha incorreta. Tente novamente.
+            <p className="text-center text-xs font-semibold text-red-400 animate-pulse">
+              Senha incorreta. Tente "rui2026" para o Dono ou "garcom" para Garçom.
             </p>
           )}
 
-          <Button className="w-full h-11 sm:h-12 bg-red-600 font-bold text-white hover:bg-red-700 transition-colors text-base" type="submit">
+          <Button className="w-full h-12 bg-red-600 font-extrabold text-white hover:bg-red-700 transition-colors text-base shadow-lg shadow-red-950/40" type="submit">
             Entrar no Sistema
           </Button>
         </form>
+
+        {/* Atalhos Rápidos de Acesso para Facilitar */}
+        <div className="mt-6 border-t border-white/10 pt-4 space-y-2">
+          <p className="text-center text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+            Acesso Rápido com 1 Toque:
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <form action={login}>
+              <input type="hidden" name="password" value="rui2026" />
+              <input type="hidden" name="next" value="/admin" />
+              <Button type="submit" variant="outline" className="w-full text-xs font-bold border-red-500/30 text-red-300 hover:bg-red-500/10 h-10">
+                👑 Sou Dono
+              </Button>
+            </form>
+            <form action={login}>
+              <input type="hidden" name="password" value="garcom" />
+              <input type="hidden" name="next" value="/garcom" />
+              <Button type="submit" variant="outline" className="w-full text-xs font-bold border-amber-500/30 text-amber-300 hover:bg-amber-500/10 h-10">
+                🛎️ Sou Garçom
+              </Button>
+            </form>
+          </div>
+        </div>
       </Card>
     </main>
   );
