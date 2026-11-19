@@ -1,4 +1,4 @@
-export type AdminView = "cardapio" | "categorias" | "qrcodes" | "equipe" | "musica";
+export type AdminView = "dashboard" | "pedidos" | "cardapio" | "categorias" | "qrcodes" | "equipe" | "musica";
 export type Product = {
   id: string;
   name: string;

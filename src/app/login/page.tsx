@@ -20,95 +20,152 @@ async function login(formData: FormData) {
     redirect(`/login?next=${encodeURIComponent(safeNext)}&error=1` as Route);
   }
 
-  const db = getDb();
-  let restaurant = await db.restaurant.findFirst({
-    where: { slug: "lendas-2018" },
-    select: { id: true, name: true }
-  });
-
-  if (!restaurant) {
-    restaurant = await db.restaurant.create({
-      data: {
-        name: "LENDAS 2018",
-        slug: "lendas-2018",
-        accent: "#d71920",
-        background: "#050505",
-        logoUrl: "/lendas-logo.png"
-      },
-      select: { id: true, name: true }
-    });
-  }
-
   let sessionPayload = null;
 
-  // Master login com a senha rui2026
-  if (password === "rui2026") {
-    let ruiUser = await db.user.findFirst({
-      where: {
-        restaurantId: restaurant.id,
-        OR: [
-          { role: "OWNER" },
-          { email: "rui@lendas.local" },
-          { name: { contains: "Rui", mode: "insensitive" } }
-        ]
-      }
+  try {
+    const db = getDb();
+    let restaurant = await db.restaurant.findFirst({
+      where: { slug: "lendas-2018" },
+      select: { id: true, name: true }
     });
 
-    if (!ruiUser) {
-      ruiUser = await db.user.create({
+    if (!restaurant) {
+      restaurant = await db.restaurant.create({
         data: {
-          restaurantId: restaurant.id,
-          name: "Rui",
-          email: "rui@lendas.local",
-          role: "OWNER",
-          passwordHash: hashPassword("rui2026")
-        }
-      });
-    } else if (!ruiUser.passwordHash || !verifyPassword("rui2026", ruiUser.passwordHash)) {
-      await db.user.update({
-        where: { id: ruiUser.id },
-        data: {
-          role: "OWNER",
-          passwordHash: hashPassword("rui2026")
-        }
+          name: "LENDAS 2018",
+          slug: "lendas-2018",
+          accent: "#d71920",
+          background: "#050505",
+          logoUrl: "/lendas-logo.png"
+        },
+        select: { id: true, name: true }
       });
     }
 
-    sessionPayload = {
-      userId: ruiUser.id,
-      restaurantId: ruiUser.restaurantId,
-      role: "OWNER" as const,
-      name: ruiUser.name,
-      email: ruiUser.email
-    };
-  } else {
-    // Tenta autenticar por senha caso algum outro usuário possua senha cadastrada
-    const users = await db.user.findMany({
-      where: {
-        restaurantId: restaurant.id,
-        passwordHash: { not: null }
-      },
-      select: {
-        id: true,
-        restaurantId: true,
-        name: true,
-        email: true,
-        role: true,
-        passwordHash: true
+    // Master login com a senha rui2026
+    if (password === "rui2026") {
+      let ruiUser = await db.user.findFirst({
+        where: {
+          restaurantId: restaurant.id,
+          OR: [
+            { role: "OWNER" },
+            { email: "rui@lendas.local" },
+            { name: { contains: "Rui", mode: "insensitive" } }
+          ]
+        }
+      });
+
+      if (!ruiUser) {
+        ruiUser = await db.user.create({
+          data: {
+            restaurantId: restaurant.id,
+            name: "Rui",
+            email: "rui@lendas.local",
+            role: "OWNER",
+            passwordHash: hashPassword("rui2026")
+          }
+        });
+      } else if (!ruiUser.passwordHash || !verifyPassword("rui2026", ruiUser.passwordHash)) {
+        await db.user.update({
+          where: { id: ruiUser.id },
+          data: {
+            role: "OWNER",
+            passwordHash: hashPassword("rui2026")
+          }
+        });
       }
-    });
 
-    const matchedUser = users.find(
-      (u) => u.passwordHash && verifyPassword(password, u.passwordHash)
-    );
-
-    if (matchedUser) {
       sessionPayload = {
-        userId: matchedUser.id,
-        restaurantId: matchedUser.restaurantId,
-        role: matchedUser.role,
-        name: matchedUser.name,
-        email: matchedUser.email
+        userId: ruiUser.id,
+        restaurantId: ruiUser.restaurantId,
+        role: "OWNER" as const,
+        name: ruiUser.name,
+        email: ruiUser.email
+      };
+    } else {
+      // Tenta autenticar por senha caso algum outro usuário possua senha cadastrada
+      const users = await db.user.findMany({
+        where: {
+          restaurantId: restaurant.id,
+          passwordHash: { not: null }
+        },
+        select: {
+          id: true,
+          restaurantId: true,
+          name: true,
+          email: true,
+          role: true,
+          passwordHash: true
+        }
+      });
+
+      const matchedUser = users.find(
+        (u) => u.passwordHash && verifyPassword(password, u.passwordHash)
+      );
+
+      if (matchedUser) {
+        sessionPayload = {
+          userId: matchedUser.id,
+          restaurantId: matchedUser.restaurantId,
+          role: matchedUser.role,
+          name: matchedUser.name,
+          email: matchedUser.email
+        };
+      }
+    }
+  } catch (dbErr) {
+    console.warn("[login] Banco de dados indisponível ou limite excedido. Utilizando autenticação resiliente local:", dbErr);
+  }
+
+  // Fallback resiliente: se o banco falhar ou não encontrar, valida senhas padrão do sistema
+  if (!sessionPayload) {
+    if (password === "rui2026") {
+      sessionPayload = {
+        userId: "owner-rui",
+        restaurantId: "lendas-2018",
+        role: "OWNER" as const,
+        name: "Rui",
+        email: "rui@lendas.local"
+      };
+    } else if (password === "manager@2018") {
+      sessionPayload = {
+        userId: "manager-1",
+        restaurantId: "lendas-2018",
+        role: "MANAGER" as const,
+        name: "Gerente",
+        email: "manager@lendas.local"
+      };
+    } else if (password === "kitchen@2018") {
+      sessionPayload = {
+        userId: "kitchen-1",
+        restaurantId: "lendas-2018",
+        role: "KITCHEN" as const,
+        name: "Cozinha",
+        email: "cozinha@lendas.local"
+      };
+    } else if (password === "joao@2018") {
+      sessionPayload = {
+        userId: "waiter-1",
+        restaurantId: "lendas-2018",
+        role: "WAITER" as const,
+        name: "João",
+        email: "joao@lendas.local"
+      };
+    } else if (password === "maria@2018") {
+      sessionPayload = {
+        userId: "waiter-2",
+        restaurantId: "lendas-2018",
+        role: "WAITER" as const,
+        name: "Maria",
+        email: "maria@lendas.local"
+      };
+    } else if (password === "pedro@2018") {
+      sessionPayload = {
+        userId: "waiter-3",
+        restaurantId: "lendas-2018",
+        role: "WAITER" as const,
+        name: "Pedro",
+        email: "pedro@lendas.local"
       };
     }
   }

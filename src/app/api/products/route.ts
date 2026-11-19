@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { hasStaffAccess } from "@/lib/auth";
 import { getDb } from "@/lib/db";
+import { memoryStore } from "@/lib/memory-store";
 
 export const dynamic = "force-dynamic";
 
@@ -78,10 +79,6 @@ async function getRestaurant(db: ProductsDb) {
 }
 
 export async function GET() {
-  if (!process.env.DATABASE_URL) {
-    return NextResponse.json({ products: [] });
-  }
-
   try {
     const db = getDb() as unknown as ProductsDb;
     const restaurant = await getRestaurant(db);
@@ -91,16 +88,36 @@ export async function GET() {
       include: { category: { select: { name: true } } }
     });
 
-    return NextResponse.json(
-      { products: products.map(toClientProduct) },
-      { headers: { "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate" } }
-    );
-  } catch {
-    return NextResponse.json(
-      { products: [], degraded: true },
-      { headers: { "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate" } }
-    );
+    if (products.length > 0) {
+      return NextResponse.json(
+        { products: products.map(toClientProduct) },
+        { headers: { "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate" } }
+      );
+    }
+  } catch (err) {
+    console.warn("[api/products] Banco indisponível, usando memoryStore:", err);
   }
+
+  // Fallback resiliente usando memoryStore
+  return NextResponse.json(
+    {
+      products: memoryStore.products.filter((p) => p.active).map((p) => ({
+        id: p.id,
+        name: p.name,
+        desc: p.desc,
+        description: p.desc,
+        imageUrl: p.imageUrl || getProductMockImage(p.name, p.category),
+        price: p.price,
+        isFeatured: p.isFeatured ?? false,
+        isPromo: p.isPromo ?? false,
+        promoPrice: p.promoPrice ?? null,
+        category: p.category,
+        active: p.active,
+        tone: p.tone || "from-red-700/30 to-zinc-950"
+      }))
+    },
+    { headers: { "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate" } }
+  );
 }
 
 export async function POST(request: Request) {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { hasStaffAccess } from "@/lib/auth";
 import { getDb } from "@/lib/db";
+import { memoryStore } from "@/lib/memory-store";
 
 export async function POST(
   _request: Request,
@@ -12,15 +13,17 @@ export async function POST(
 
   const { id } = await params;
 
-  if (!process.env.DATABASE_URL) {
-    return NextResponse.json({ success: true, mode: "demo" });
-  }
+  memoryStore.resolveWaiterCall(id);
 
-  const db = getDb();
-  await db.waiterCall.update({
-    where: { id },
-    data: { status: "RESOLVED" }
-  }).catch(() => {});
+  try {
+    const db = getDb();
+    await db.waiterCall.update({
+      where: { id },
+      data: { status: "RESOLVED" }
+    });
+  } catch (err) {
+    console.warn("[api/waiter-calls/resolve] Banco indisponível, resolvido em memória:", err);
+  }
 
   return NextResponse.json({ success: true });
 }

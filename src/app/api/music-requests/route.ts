@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { hasStaffAccess } from "@/lib/auth";
 import { getDb } from "@/lib/db";
+import { memoryStore } from "@/lib/memory-store";
 
 export const dynamic = "force-dynamic";
 
@@ -65,30 +66,46 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
-  if (!process.env.DATABASE_URL) {
-    return NextResponse.json({ requests: [] });
+  try {
+    const db = getDb() as unknown as MusicRequestsDb;
+    const restaurant = await getRestaurant(db);
+    const requests = await db.musicRequest.findMany({
+      where: { restaurantId: restaurant.id },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      include: { table: { select: { number: true } } }
+    });
+
+    if (requests.length > 0 || memoryStore.musicRequests.length === 0) {
+      return NextResponse.json({
+        requests: requests.map((request) => ({
+          id: request.id,
+          table: `Mesa ${request.table.number}`,
+          customerName: request.customerName,
+          title: request.title,
+          artist: request.artist,
+          notes: request.notes,
+          status: request.status,
+          createdAt: request.createdAt,
+          playedAt: request.playedAt
+        }))
+      });
+    }
+  } catch (err) {
+    console.warn("[api/music-requests] Banco indisponível, usando memoryStore:", err);
   }
 
-  const db = getDb() as unknown as MusicRequestsDb;
-  const restaurant = await getRestaurant(db);
-  const requests = await db.musicRequest.findMany({
-    where: { restaurantId: restaurant.id },
-    orderBy: { createdAt: "desc" },
-    take: 50,
-    include: { table: { select: { number: true } } }
-  });
-
   return NextResponse.json({
-    requests: requests.map((request) => ({
-      id: request.id,
-      table: `Mesa ${request.table.number}`,
-      customerName: request.customerName,
-      title: request.title,
-      artist: request.artist,
-      notes: request.notes,
-      status: request.status,
-      createdAt: request.createdAt,
-      playedAt: request.playedAt
+    requests: memoryStore.musicRequests.map((r) => ({
+      id: r.id,
+      table: `Mesa ${r.tableToken}`,
+      customerName: r.customerName,
+      title: r.title,
+      artist: r.artist,
+      notes: r.notes,
+      status: r.played ? "PLAYED" : "OPEN",
+      createdAt: r.createdAt,
+      playedAt: r.played ? r.createdAt : null
     }))
   });
 }
@@ -100,71 +117,69 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Music request requires customer and title" }, { status: 400 });
   }
 
-  if (!process.env.DATABASE_URL) {
-    return NextResponse.json({
-      mode: "demo",
-      musicRequest: {
-        id: `demo_music_${Date.now()}`,
-        status: "OPEN",
-        ...payload
+  // Registra no memoryStore
+  const memReq = memoryStore.addMusicRequest(
+    payload.tableToken || "1",
+    payload.customerName,
+    payload.title,
+    payload.artist,
+    payload.notes
+  );
+
+  try {
+    const db = getDb() as unknown as MusicRequestsDb;
+    let restaurantId = payload.restaurantId;
+    let tableId = payload.tableId;
+    let sessionId = payload.sessionId;
+
+    if (payload.tableToken) {
+      const table = await db.table.findUnique({
+        where: { qrToken: payload.tableToken },
+        include: { currentSession: true }
+      });
+
+      if (table) {
+        restaurantId = table.restaurantId;
+        tableId = table.id;
+        sessionId =
+          table.currentSession?.id ??
+          (
+            await db.tableSession.create({
+              data: {
+                restaurantId: table.restaurantId,
+                tableId: table.id
+              }
+            })
+          ).id;
+
+        await db.table.update({
+          where: { id: table.id },
+          data: {
+            currentSessionId: sessionId,
+            status: "OCCUPIED"
+          }
+        });
       }
-    });
-  }
-
-  const db = getDb() as unknown as MusicRequestsDb;
-  let restaurantId = payload.restaurantId;
-  let tableId = payload.tableId;
-  let sessionId = payload.sessionId;
-
-  if (payload.tableToken) {
-    const table = await db.table.findUnique({
-      where: { qrToken: payload.tableToken },
-      include: { currentSession: true }
-    });
-
-    if (!table) {
-      return NextResponse.json({ error: "Table not found" }, { status: 404 });
     }
 
-    restaurantId = table.restaurantId;
-    tableId = table.id;
-    sessionId =
-      table.currentSession?.id ??
-      (
-        await db.tableSession.create({
-          data: {
-            restaurantId: table.restaurantId,
-            tableId: table.id
-          }
-        })
-      ).id;
-
-    if (!table.currentSessionId) {
-      await db.table.update({
-        where: { id: table.id },
+    if (restaurantId && tableId && sessionId) {
+      const musicRequest = await db.musicRequest.create({
         data: {
-          currentSessionId: sessionId,
-          status: "OCCUPIED"
+          restaurantId,
+          tableId,
+          sessionId,
+          customerName: payload.customerName,
+          title: payload.title,
+          artist: payload.artist,
+          notes: payload.notes
         }
       });
+
+      return NextResponse.json({ musicRequest });
     }
+  } catch (err) {
+    console.warn("[api/music-requests POST] Banco indisponível, registrado no memoryStore:", err);
   }
 
-  if (!restaurantId || !tableId || !sessionId) {
-    return NextResponse.json({ error: "Music request requires table/session context" }, { status: 400 });
-  }
-
-  const musicRequest = await db.musicRequest.create({
-    data: {
-      restaurantId,
-      tableId,
-      sessionId,
-      customerName: payload.customerName.trim(),
-      title: payload.title.trim(),
-      artist: payload.artist?.trim() || null,
-      notes: payload.notes?.trim() || null
-    }
-  });
-
-  return NextResponse.json({ musicRequest });
+  return NextResponse.json({ musicRequest: memReq });
 }

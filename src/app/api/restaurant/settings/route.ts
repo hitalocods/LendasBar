@@ -90,31 +90,33 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ ok: true, settings: body });
   }
 
-  const db = getDb() as unknown as RestaurantDb;
-  const restaurant = await db.restaurant.findFirst({
-    where: { slug: "lendas-2018" }
-  });
+  try {
+    const db = getDb() as unknown as RestaurantDb;
+    const restaurant = await db.restaurant.findFirst({
+      where: { slug: "lendas-2018" }
+    });
 
-  if (!restaurant) {
-    return NextResponse.json({ error: "Restaurant not found" }, { status: 404 });
+    if (restaurant) {
+      const currentSettings = (restaurant.settings || {}) as Record<string, unknown>;
+
+      await db.restaurant.update({
+        where: { id: restaurant.id },
+        data: {
+          ...(body.name ? { name: body.name.trim() } : {}),
+          ...(body.accent ? { accent: body.accent.trim() } : {}),
+          ...(body.background ? { background: body.background.trim() } : {}),
+          ...(typeof body.logoUrl === "string" ? { logoUrl: body.logoUrl.trim() || null } : {}),
+          settings: {
+            ...currentSettings,
+            ...(typeof body.businessHours === "string" ? { businessHours: body.businessHours.trim() } : {}),
+            ...(typeof body.phone === "string" ? { phone: body.phone.trim() } : {})
+          }
+        }
+      });
+    }
+  } catch (err) {
+    console.warn("[api/restaurant/settings PATCH] Banco indisponível:", err);
   }
 
-  const currentSettings = (restaurant.settings || {}) as Record<string, unknown>;
-
-  await db.restaurant.update({
-    where: { id: restaurant.id },
-    data: {
-      ...(body.name ? { name: body.name.trim() } : {}),
-      ...(body.accent ? { accent: body.accent.trim() } : {}),
-      ...(body.background ? { background: body.background.trim() } : {}),
-      ...(typeof body.logoUrl === "string" ? { logoUrl: body.logoUrl.trim() || null } : {}),
-      settings: {
-        ...currentSettings,
-        ...(typeof body.businessHours === "string" ? { businessHours: body.businessHours.trim() } : {}),
-        ...(typeof body.phone === "string" ? { phone: body.phone.trim() } : {})
-      }
-    }
-  });
-
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, settings: body });
 }

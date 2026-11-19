@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { memoryStore } from "@/lib/memory-store";
 
 type TableSessionRecord = {
   id: string;
@@ -45,74 +46,95 @@ export async function POST(
     return NextResponse.json({ error: "Customer name is required" }, { status: 400 });
   }
 
-  if (!process.env.DATABASE_URL) {
-    return NextResponse.json({
-      mode: "demo",
-      table: { token, number: token },
-      session: { id: `demo_session_${token}`, status: "ACTIVE" },
-      user: { name, clientId: body.clientId ?? "demo-client" }
-    });
-  }
+  // Sempre registra no memoryStore
+  const memTable = memoryStore.openTableSession(token, name);
 
-  const db = getDb() as unknown as SessionRouteDb;
-  const table = await db.table.findUnique({ where: { qrToken: token }, include: { currentSession: true } });
+  try {
+    const db = getDb() as unknown as SessionRouteDb;
+    const table = await db.table.findUnique({ where: { qrToken: token }, include: { currentSession: true } });
 
-  if (!table) {
-    return NextResponse.json({ error: "Table not found" }, { status: 404 });
-  }
+    if (table) {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
 
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
-
-  let currentSession = table.currentSession;
-  if (currentSession && (currentSession.openedAt < startOfDay || currentSession.status === "CLOSED")) {
-    await db.tableSession.update({
-      where: { id: currentSession.id },
-      data: { status: "CLOSED", closedAt: new Date() }
-    });
-    currentSession = null;
-  }
-
-  const session =
-    currentSession ??
-    (await db.tableSession.create({
-      data: {
-        restaurantId: table.restaurantId,
-        tableId: table.id
+      let currentSession = table.currentSession;
+      if (currentSession && (currentSession.openedAt < startOfDay || currentSession.status === "CLOSED")) {
+        await db.tableSession.update({
+          where: { id: currentSession.id },
+          data: { status: "CLOSED", closedAt: new Date() }
+        });
+        currentSession = null;
       }
-    }));
 
-  await db.table.update({
-    where: { id: table.id },
-    data: { currentSessionId: session.id, status: "OCCUPIED" }
-  });
+      const session =
+        currentSession ??
+        (await db.tableSession.create({
+          data: {
+            restaurantId: table.restaurantId,
+            tableId: table.id
+          }
+        }));
 
-  const user = await db.tableSessionUser.upsert({
-    where: {
-      sessionId_clientId: {
-        sessionId: session.id,
-        clientId: body.clientId ?? name
-      }
-    },
-    create: {
-      sessionId: session.id,
-      clientId: body.clientId ?? name,
-      name
-    },
-    update: {
-      name,
-      active: true
+      await db.table.update({
+        where: { id: table.id },
+        data: { currentSessionId: session.id, status: "OCCUPIED" }
+      });
+
+      const user = await db.tableSessionUser.upsert({
+        where: {
+          sessionId_clientId: {
+            sessionId: session.id,
+            clientId: body.clientId ?? name
+          }
+        },
+        create: {
+          sessionId: session.id,
+          clientId: body.clientId ?? name,
+          name
+        },
+        update: {
+          name,
+          active: true
+        }
+      });
+
+      const users = await db.tableSessionUser.findMany({
+        where: { sessionId: session.id, active: true },
+        select: { id: true, name: true, active: true, clientId: true },
+        orderBy: { createdAt: "asc" }
+      });
+
+      const host = users[0];
+      const isHost = host?.clientId === (body.clientId ?? name);
+
+      return NextResponse.json({
+        table: { token, number: token },
+        session,
+        user,
+        users,
+        isHost,
+        hostUser: host ? { id: host.id, name: host.name } : null
+      });
     }
+  } catch (err) {
+    console.warn("[api/mesa/session] Banco indisponível, usando memoryStore:", err);
+  }
+
+  // Fallback resiliente usando memoryStore
+  const users = memTable.guests.map((g, idx) => ({
+    id: `mem-user-${idx}`,
+    name: g,
+    active: true,
+    clientId: g
+  }));
+  const host = users[0];
+
+  return NextResponse.json({
+    table: { token, number: memTable.number },
+    session: { id: memTable.currentSessionId || `session-${token}`, status: "ACTIVE" },
+    user: { id: `mem-user-${name}`, name, clientId: body.clientId ?? name },
+    users,
+    isHost: host?.name === name || memTable.guests.length <= 1,
+    hostUser: host ? { id: host.id, name: host.name } : null
   });
-
-  const users = await db.tableSessionUser.findMany({
-    where: { sessionId: session.id, active: true },
-    select: { id: true, name: true, active: true, clientId: true },
-    orderBy: { joinedAt: "asc" }
-  });
-
-  const hostUser = users[0] ?? null;
-  const isHost = Boolean(hostUser && (hostUser.id === user.id || hostUser.clientId === user.clientId));
-
-  return NextResponse.json({ table, session, user: { ...user, isHost }, users, hostUser, isHost });
 }

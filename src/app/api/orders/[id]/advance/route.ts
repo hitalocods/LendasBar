@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { hasStaffAccess } from "@/lib/auth";
 import { getDb } from "@/lib/db";
+import { memoryStore } from "@/lib/memory-store";
 
 const nextStatus: Record<string, string> = {
   PENDING: "CONFIRMED",
@@ -27,29 +28,31 @@ export async function POST(
 
   const { id } = await params;
 
-  if (!process.env.DATABASE_URL) {
-    return NextResponse.json({
-      mode: "demo",
-      order: { id, status: "CONFIRMED" }
+  try {
+    const db = getDb() as unknown as AdvanceOrderDb;
+    const order = await db.order.findUnique({
+      where: { id },
+      select: { id: true, status: true }
     });
-  }
 
-  const db = getDb() as unknown as AdvanceOrderDb;
-  const order = await db.order.findUnique({
-    where: { id },
-    select: { id: true, status: true }
-  });
+    if (order) {
+      const updatedOrder = await db.order.update({
+        where: { id },
+        data: {
+          status: nextStatus[order.status] ?? "CONFIRMED"
+        }
+      });
 
-  if (!order) {
-    return NextResponse.json({ error: "Order not found" }, { status: 404 });
-  }
-
-  const updatedOrder = await db.order.update({
-    where: { id },
-    data: {
-      status: nextStatus[order.status] ?? "CONFIRMED"
+      return NextResponse.json({ order: updatedOrder });
     }
-  });
+  } catch (err) {
+    console.warn("[api/orders/advance] Banco indisponível, usando memoryStore:", err);
+  }
 
-  return NextResponse.json({ order: updatedOrder });
+  const memOrder = memoryStore.advanceOrderStatus(id);
+  if (memOrder) {
+    return NextResponse.json({ order: memOrder });
+  }
+
+  return NextResponse.json({ mode: "demo", order: { id, status: "CONFIRMED" } });
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { hasStaffAccess } from "@/lib/auth";
 import { getDb } from "@/lib/db";
+import { memoryStore } from "@/lib/memory-store";
 
 export const dynamic = "force-dynamic";
 
@@ -34,10 +35,6 @@ async function getRestaurant(db: CategoryDb) {
 }
 
 export async function GET() {
-  if (!process.env.DATABASE_URL) {
-    return NextResponse.json({ categories: [] });
-  }
-
   try {
     const db = getDb() as unknown as CategoryDb;
     const restaurant = await getRestaurant(db);
@@ -52,21 +49,36 @@ export async function GET() {
       }
     });
 
-    return NextResponse.json(
-      {
-        categories: categories.map((cat) => ({
-          id: cat.id,
-          name: cat.name,
-          sortOrder: cat.sortOrder,
-          active: cat.active,
-          productCount: cat._count?.products ?? 0
-        }))
-      },
-      { headers: { "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate" } }
-    );
-  } catch {
-    return NextResponse.json({ categories: [] });
+    if (categories.length > 0) {
+      return NextResponse.json(
+        {
+          categories: categories.map((cat) => ({
+            id: cat.id,
+            name: cat.name,
+            sortOrder: cat.sortOrder,
+            active: cat.active,
+            productCount: cat._count?.products ?? 0
+          }))
+        },
+        { headers: { "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate" } }
+      );
+    }
+  } catch (err) {
+    console.warn("[api/categories] Banco indisponível, usando memoryStore:", err);
   }
+
+  return NextResponse.json(
+    {
+      categories: memoryStore.categories.map((cat, idx) => ({
+        id: `cat-${idx + 1}`,
+        name: cat,
+        sortOrder: idx,
+        active: true,
+        productCount: memoryStore.products.filter((p) => p.category === cat).length
+      }))
+    },
+    { headers: { "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate" } }
+  );
 }
 
 export async function POST(request: Request) {

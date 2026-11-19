@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { hashPassword, hasStaffAccess, verifyPassword } from "@/lib/auth";
 import { getDb } from "@/lib/db";
+import { memoryStore } from "@/lib/memory-store";
 
 export const dynamic = "force-dynamic";
 
@@ -9,35 +10,46 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
-  if (!process.env.DATABASE_URL) {
-    return NextResponse.json({ waiters: [] });
+  try {
+    const db = getDb();
+    const restaurant = await db.restaurant.findFirst({
+      where: { slug: "lendas-2018" },
+      select: { id: true }
+    });
+
+    if (restaurant) {
+      const waiters = await db.user.findMany({
+        where: {
+          restaurantId: restaurant.id,
+          role: "WAITER"
+        },
+        include: {
+          assignedTables: { select: { number: true } }
+        },
+        orderBy: { name: "asc" }
+      });
+
+      if (waiters.length > 0) {
+        return NextResponse.json({
+          waiters: waiters.map((w) => ({
+            id: w.id,
+            name: w.name,
+            email: w.email,
+            tables: w.assignedTables.map((t) => t.number).join(", ") || "Todas"
+          }))
+        });
+      }
+    }
+  } catch (err) {
+    console.warn("[api/waiters] Banco indisponível, usando memoryStore:", err);
   }
 
-  const db = getDb();
-  const restaurant = await db.restaurant.findFirst({
-    where: { slug: "lendas-2018" },
-    select: { id: true }
-  });
-
-  if (!restaurant) return NextResponse.json({ waiters: [] });
-
-  const waiters = await db.user.findMany({
-    where: {
-      restaurantId: restaurant.id,
-      role: "WAITER"
-    },
-    include: {
-      assignedTables: { select: { number: true } }
-    },
-    orderBy: { name: "asc" }
-  });
-
   return NextResponse.json({
-    waiters: waiters.map((w) => ({
+    waiters: memoryStore.waiters.map((w) => ({
       id: w.id,
       name: w.name,
       email: w.email,
-      tables: w.assignedTables.map((t) => t.number).join(", ") || "Nenhuma"
+      tables: "Todas as mesas"
     }))
   });
 }
@@ -59,43 +71,51 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Defina uma senha de acesso com pelo menos 4 caracteres" }, { status: 400 });
   }
 
-  if (!process.env.DATABASE_URL) {
-    return NextResponse.json({ mode: "demo", waiter: { id: `demo_${Date.now()}`, name } });
-  }
-
-  const db = getDb();
-  const restaurant = await db.restaurant.findFirst({
-    where: { slug: "lendas-2018" },
-    select: { id: true }
-  });
-
-  if (!restaurant) return NextResponse.json({ error: "Restaurante não encontrado" }, { status: 404 });
-
   const email = body.email?.trim() || `${name.toLowerCase().replace(/\s+/g, ".")}@lendas.local`;
 
-  // O login identifica o usuário só pela senha, então ela precisa ser única.
-  const withPassword = await db.user.findMany({
-    where: { restaurantId: restaurant.id, passwordHash: { not: null } },
-    select: { passwordHash: true }
-  });
-  const passwordInUse =
-    password === "rui2026" ||
-    withPassword.some((user) => user.passwordHash && verifyPassword(password, user.passwordHash));
+  // Registra no memoryStore
+  const newWaiter = {
+    id: `waiter-${Date.now()}`,
+    name,
+    email,
+    role: "WAITER" as const,
+    passwordHash: hashPassword(password)
+  };
+  memoryStore.waiters.push(newWaiter);
 
-  if (passwordInUse) {
-    return NextResponse.json({ error: "Essa senha já está em uso. Escolha outra." }, { status: 409 });
+  try {
+    const db = getDb();
+    const restaurant = await db.restaurant.findFirst({
+      where: { slug: "lendas-2018" },
+      select: { id: true }
+    });
+
+    if (restaurant) {
+      const existingUsers = await db.user.findMany({
+        where: { restaurantId: restaurant.id, passwordHash: { not: null } },
+        select: { passwordHash: true }
+      });
+
+      const isConflict = existingUsers.some((u) => u.passwordHash && verifyPassword(password, u.passwordHash));
+      if (isConflict) {
+        return NextResponse.json({ error: "Essa senha já pertence a outro usuário. Escolha uma senha diferente." }, { status: 409 });
+      }
+
+      const waiter = await db.user.create({
+        data: {
+          restaurantId: restaurant.id,
+          name,
+          email,
+          role: "WAITER",
+          passwordHash: hashPassword(password)
+        }
+      });
+
+      return NextResponse.json({ waiter });
+    }
+  } catch (err) {
+    console.warn("[api/waiters] Banco indisponível, salvo no memoryStore:", err);
   }
 
-  const waiter = await db.user.create({
-    data: {
-      restaurantId: restaurant.id,
-      name,
-      email,
-      role: "WAITER",
-      passwordHash: hashPassword(password)
-    },
-    select: { id: true, name: true, email: true, role: true }
-  });
-
-  return NextResponse.json({ waiter });
+  return NextResponse.json({ waiter: newWaiter });
 }

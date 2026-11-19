@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { hasStaffAccess } from "@/lib/auth";
 import { getDb } from "@/lib/db";
+import { memoryStore } from "@/lib/memory-store";
 
 export const dynamic = "force-dynamic";
 
@@ -37,53 +38,69 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
-  if (!process.env.DATABASE_URL) {
-    return NextResponse.json({ tables: [] });
+  try {
+    const db = getDb() as unknown as TablesDb;
+    const restaurant = await db.restaurant.findFirst({
+      where: { slug: "lendas-2018" },
+      select: { id: true }
+    });
+
+    if (restaurant) {
+      const tables = await db.table.findMany({
+        where: { restaurantId: restaurant.id },
+        orderBy: { number: "asc" },
+        include: {
+          currentSession: {
+            include: {
+              users: { select: { id: true, name: true } },
+              orders: {
+                include: {
+                  items: { select: { quantity: true, unitCents: true } }
+                }
+              }
+            }
+          },
+          assignedWaiter: { select: { id: true, name: true } }
+        }
+      });
+
+      if (tables.length > 0) {
+        return NextResponse.json({
+          tables: tables.map((table) => ({
+            id: table.id,
+            number: table.number,
+            qrToken: table.qrToken,
+            status: table.status,
+            sessionId: table.currentSessionId,
+            waiter: table.assignedWaiter
+              ? { id: table.assignedWaiter.id, name: table.assignedWaiter.name }
+              : null,
+            guests: table.currentSession?.users.map((user) => user.name) ?? [],
+            total:
+              table.currentSession?.orders.reduce(
+                (sum, order) =>
+                  sum + order.items.reduce((itemSum, item) => itemSum + item.quantity * item.unitCents, 0),
+                0
+              ) ?? 0
+          }))
+        });
+      }
+    }
+  } catch (err) {
+    console.warn("[api/tables] Banco indisponível, usando memoryStore:", err);
   }
 
-  const db = getDb() as unknown as TablesDb;
-  const restaurant = await db.restaurant.findFirst({
-    where: { slug: "lendas-2018" },
-    select: { id: true }
-  });
-
-  if (!restaurant) return NextResponse.json({ tables: [] });
-
-  const tables = await db.table.findMany({
-    where: { restaurantId: restaurant.id },
-    orderBy: { number: "asc" },
-    include: {
-      currentSession: {
-        include: {
-          users: { select: { id: true, name: true } },
-          orders: {
-            include: {
-              items: { select: { quantity: true, unitCents: true } }
-            }
-          }
-        }
-      },
-      assignedWaiter: { select: { id: true, name: true } }
-    }
-  });
-
+  // Fallback resiliente usando memoryStore
   return NextResponse.json({
-    tables: tables.map((table) => ({
-      id: table.id,
-      number: table.number,
-      qrToken: table.qrToken,
-      status: table.status,
-      sessionId: table.currentSessionId,
-      waiter: table.assignedWaiter
-        ? { id: table.assignedWaiter.id, name: table.assignedWaiter.name }
-        : null,
-      guests: table.currentSession?.users.map((user) => user.name) ?? [],
-      total:
-        table.currentSession?.orders.reduce(
-          (sum, order) =>
-            sum + order.items.reduce((itemSum, item) => itemSum + item.quantity * item.unitCents, 0),
-          0
-        ) ?? 0
+    tables: memoryStore.tables.map((t) => ({
+      id: t.id,
+      number: t.number,
+      qrToken: t.qrToken,
+      status: t.status,
+      sessionId: t.currentSessionId,
+      waiter: t.assignedWaiter,
+      guests: t.guests,
+      total: t.total
     }))
   });
 }

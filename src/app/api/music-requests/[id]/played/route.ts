@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { hasStaffAccess } from "@/lib/auth";
 import { getDb } from "@/lib/db";
+import { memoryStore } from "@/lib/memory-store";
 
 type PlayMusicRequestDb = {
   musicRequest: {
@@ -18,18 +19,22 @@ export async function POST(
 
   const { id } = await params;
 
-  if (!process.env.DATABASE_URL) {
-    return NextResponse.json({ mode: "demo", musicRequest: { id, status: "PLAYED" } });
+  memoryStore.markMusicPlayed(id);
+
+  try {
+    const db = getDb() as unknown as PlayMusicRequestDb;
+    const musicRequest = await db.musicRequest.update({
+      where: { id },
+      data: {
+        status: "PLAYED",
+        playedAt: new Date()
+      }
+    });
+
+    return NextResponse.json({ musicRequest });
+  } catch (err) {
+    console.warn("[api/music-requests/played] Banco indisponível, marcado no memoryStore:", err);
   }
 
-  const db = getDb() as unknown as PlayMusicRequestDb;
-  const musicRequest = await db.musicRequest.update({
-    where: { id },
-    data: {
-      status: "PLAYED",
-      playedAt: new Date()
-    }
-  });
-
-  return NextResponse.json({ musicRequest });
+  return NextResponse.json({ mode: "demo", musicRequest: { id, status: "PLAYED" } });
 }

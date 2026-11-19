@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { hasStaffAccess } from "@/lib/auth";
+import { memoryStore } from "@/lib/memory-store";
 
 export const dynamic = "force-dynamic";
 
@@ -92,42 +93,58 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
-  if (!process.env.DATABASE_URL) {
-    return NextResponse.json({ orders: [] });
+  try {
+    const db = getDb() as unknown as OrdersRouteDb;
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const orders = await db.order.findMany({
+      where: {
+        status: { not: "CANCELLED" },
+        createdAt: { gte: startOfDay }
+      },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      include: {
+        table: { select: { number: true } },
+        items: { select: { productName: true, quantity: true, unitCents: true } }
+      }
+    });
+
+    if (orders.length > 0) {
+      return NextResponse.json({
+        orders: orders.map((order) => ({
+          id: order.id,
+          table: `Mesa ${order.table.number}`,
+          guest: order.customerName,
+          items: order.items.map((item) => `${item.quantity}x ${item.productName}`),
+          total: order.items.reduce((total, item) => total + item.quantity * item.unitCents, 0) / 100,
+          status: statusLabel[order.status] ?? "Pendente",
+          createdAt: order.createdAt.toISOString(),
+          minutes: Math.max(0, Math.round((Date.now() - order.createdAt.getTime()) / 60000))
+        }))
+      }, {
+        headers: { "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate" }
+      });
+    }
+  } catch (err) {
+    console.warn("[api/orders] Banco indisponível, usando memoryStore:", err);
   }
 
-  const db = getDb() as unknown as OrdersRouteDb;
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
-
-  const orders = await db.order.findMany({
-    where: {
-      status: { not: "CANCELLED" },
-      createdAt: { gte: startOfDay }
-    },
-    orderBy: { createdAt: "desc" },
-    take: 50,
-    include: {
-      table: { select: { number: true } },
-      items: { select: { productName: true, quantity: true, unitCents: true } }
-    }
-  });
-
+  // Fallback resiliente usando memoryStore
   return NextResponse.json({
-    orders: orders.map((order) => ({
-      id: order.id,
-      table: `Mesa ${order.table.number}`,
-      guest: order.customerName,
-      items: order.items.map((item) => `${item.quantity}x ${item.productName}`),
-      total: order.items.reduce((total, item) => total + item.quantity * item.unitCents, 0) / 100,
-      status: statusLabel[order.status] ?? "Pendente",
-      createdAt: order.createdAt.toISOString(),
-      minutes: Math.max(0, Math.round((Date.now() - order.createdAt.getTime()) / 60000))
+    orders: memoryStore.orders.map((o) => ({
+      id: o.id,
+      table: `Mesa ${o.tableNumber}`,
+      guest: o.customerName,
+      items: o.items.map((item) => `${item.quantity}x ${item.productName}`),
+      total: o.totalCents / 100,
+      status: statusLabel[o.status] ?? "Pendente",
+      createdAt: o.createdAt.toISOString(),
+      minutes: Math.max(0, Math.round((Date.now() - o.createdAt.getTime()) / 60000))
     }))
   }, {
-    headers: {
-      "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate"
-    }
+    headers: { "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate" }
   });
 }
 
@@ -147,6 +164,7 @@ type OrdersRouteDbWrite = {
 };
 
 export async function POST(request: Request) {
+  let payload: OrderPayload | null = null;
   try {
     const rawIp = request.headers.get("x-forwarded-for") || request.headers.get("x-client-ip") || request.headers.get("x-real-ip") || "client_ip";
     const ip = rawIp.split(",")[0].trim();
@@ -156,11 +174,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Muitas requisições em curto intervalo. Aguarde alguns segundos." }, { status: 429 });
     }
 
-    const payload = (await request.json()) as OrderPayload;
+    payload = (await request.json()) as OrderPayload;
 
-  if (!payload.customerName || !payload.items?.length) {
-    return NextResponse.json({ error: "Order requires customer and items" }, { status: 400 });
-  }
+    if (!payload || !payload.customerName || !payload.items?.length) {
+      return NextResponse.json({ error: "Order requires customer and items" }, { status: 400 });
+    }
+
+    const currentPayload = payload;
 
   if (!process.env.DATABASE_URL) {
     return NextResponse.json({
@@ -168,20 +188,20 @@ export async function POST(request: Request) {
       order: {
         id: `demo_order_${Date.now()}`,
         status: "PENDING",
-        ...payload
+        ...currentPayload
       }
     });
   }
 
   const db = getDb() as unknown as OrdersRouteDbWrite;
 
-  let restaurantId = payload.restaurantId;
-  let tableId = payload.tableId;
-  let sessionId = payload.sessionId;
+  let restaurantId = currentPayload.restaurantId;
+  let tableId = currentPayload.tableId;
+  let sessionId = currentPayload.sessionId;
 
-  if (payload.tableToken) {
+  if (currentPayload.tableToken) {
     const table = await db.table.findUnique({
-      where: { qrToken: payload.tableToken },
+      where: { qrToken: currentPayload.tableToken },
       include: { currentSession: true }
     });
 
@@ -223,8 +243,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Order requires table/session context" }, { status: 400 });
   }
 
-  const incomingFingerprint = orderFingerprint(payload.items);
-  const lockKey = `order:${sessionId}:${payload.sessionUserId ?? payload.customerName.trim().toLowerCase()}`;
+  const incomingFingerprint = orderFingerprint(currentPayload.items);
+  const lockKey = `order:${sessionId}:${currentPayload.sessionUserId ?? currentPayload.customerName.trim().toLowerCase()}`;
   const duplicateCutoff = new Date(Date.now() - DUPLICATE_WINDOW_MS);
 
   const result = await db.$transaction(async (tx) => {
@@ -251,8 +271,8 @@ export async function POST(request: Request) {
     const recentOrder = await tx.order.findFirst({
       where: {
         sessionId,
-        customerName: payload.customerName,
-        sessionUserId: payload.sessionUserId ?? null,
+        customerName: currentPayload.customerName,
+        sessionUserId: currentPayload.sessionUserId ?? null,
         createdAt: { gte: duplicateCutoff },
         status: { not: "CANCELLED" }
       },
@@ -283,10 +303,10 @@ export async function POST(request: Request) {
         restaurantId,
         tableId,
         sessionId,
-        sessionUserId: payload.sessionUserId,
-        customerName: payload.customerName,
+        sessionUserId: currentPayload.sessionUserId,
+        customerName: currentPayload.customerName,
         items: {
-          create: payload.items.map((item) => ({
+          create: currentPayload.items.map((item) => ({
             productId: item.productId,
             productName: item.productName,
             quantity: item.quantity,
@@ -319,7 +339,22 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ order: result.order });
   } catch (error) {
-    console.error("[Orders POST Error]:", error);
+    console.warn("[Orders POST, falling back to memoryStore]:", error);
+    try {
+      if (payload && payload.customerName && payload.items?.length) {
+        const memOrder = memoryStore.addOrder(
+          payload.tableToken || payload.tableId || "1",
+          payload.customerName,
+          payload.items.map((i) => ({
+            productName: i.productName,
+            quantity: i.quantity,
+            unitCents: i.unitCents,
+            notes: i.notes
+          }))
+        );
+        return NextResponse.json({ order: memOrder, mode: "resilient" });
+      }
+    } catch {}
     return NextResponse.json({ error: error instanceof Error ? error.message : "Internal order error" }, { status: 500 });
   }
 }
