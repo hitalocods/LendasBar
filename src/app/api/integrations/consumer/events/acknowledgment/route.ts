@@ -11,7 +11,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ([]));
     const items = Array.isArray(body) ? body : (body.items || []);
-    const eventIds = items.map((i: any) => i.id || i.orderId).filter(Boolean);
+    const eventIds = items.map((i: { id?: string; orderId?: string }) => i.id || i.orderId).filter(Boolean);
     const orderIds = eventIds.map((id: string) => String(id).replace(/^evt_/, ""));
     if (orderIds.length > 0) {
       const db = getDb();

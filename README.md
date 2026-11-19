@@ -1,44 +1,33 @@
 # LENDAS 2018
 
-Premium realtime restaurant operating system with separated experiences:
+Cardápio digital + painel do dono, integrado ao PDV Consumer.
 
-- Customer app: `/mesa/[id]`
-- Kitchen dashboard: `/kitchen`
-- Admin panel: `/admin`
+- Cliente (mesa): `/mesa/[id]`
+- Painel do dono: `/admin` (login em `/login`)
 
 ## Stack
 
-Next.js App Router, TypeScript, Tailwind CSS, shadcn-style components, Framer Motion, Zustand, Prisma, PostgreSQL/Neon and PWA support.
+Next.js (App Router), TypeScript, Tailwind CSS, Framer Motion, Zustand, Prisma, PostgreSQL (Neon), Cloudinary e PWA.
 
-## Local Setup
+## Rodando localmente
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open `http://127.0.0.1:3000`.
+Abra `http://127.0.0.1:3000`.
 
-## Environment
+## Ambiente
 
-Create `.env` from `.env.example`:
-
-```bash
-DATABASE_URL="postgresql://USER:PASSWORD@HOST.neon.tech/lendas2018?sslmode=require"
-UPLOADTHING_TOKEN=""
-AUTH_SECRET="replace-with-a-long-random-secret"
-NEXT_PUBLIC_APP_URL="http://localhost:3000"
-NEXT_PUBLIC_BRAND_HANDLE="@atlassoftware_"
-NEXT_PUBLIC_MARKETING_COPY="Peça direto no QR e viva a experiência da casa."
-```
-
-Then run:
+Copie `.env.example` para `.env` e preencha os valores (banco, Cloudinary, `AUTH_SECRET`, integração Consumer e `CRON_SECRET`). Depois:
 
 ```bash
 npx prisma generate
 npx prisma migrate dev
+npm run db:seed
 ```
 
 ## Deploy
 
-The project is ready for Vercel. Configure `DATABASE_URL` and upload provider secrets in Vercel environment variables before production deploy.
+Pronto para Vercel. Configure as mesmas variáveis do `.env.example` no painel da Vercel.

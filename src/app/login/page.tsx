@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { cookies } from "next/headers";
+import type { Route } from "next";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -11,10 +12,10 @@ async function login(formData: FormData) {
   "use server";
 
   const password = String(formData.get("password") ?? "").trim();
-  const safeNext = (String(formData.get("next") ?? "/admin").trim() || "/admin") as any;
+  const safeNext = (String(formData.get("next") ?? "/admin").trim() || "/admin") as Route;
 
   if (!password) {
-    redirect(`/login?next=${encodeURIComponent(safeNext)}&error=1` as any);
+    redirect(`/login?next=${encodeURIComponent(safeNext)}&error=1` as Route);
   }
 
   const db = getDb();
@@ -111,7 +112,7 @@ async function login(formData: FormData) {
   }
 
   if (!sessionPayload) {
-    redirect(`/login?next=${encodeURIComponent(safeNext)}&error=1` as any);
+    redirect(`/login?next=${encodeURIComponent(safeNext)}&error=1` as Route);
   }
 
   const cookieStore = await cookies();

@@ -44,18 +44,6 @@ input {
   font: inherit;
 }
 
-.phone-shell {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 28%),
-    #090a0c;
-}
-
-.red-sheen {
-  background:
-    linear-gradient(135deg, rgba(215, 25, 32, 0.28), rgba(215, 25, 32, 0.04)),
-    #151619;
-}
-
 .noise {
   background-image:
     linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),

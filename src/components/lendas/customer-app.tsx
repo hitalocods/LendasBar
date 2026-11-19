@@ -57,8 +57,7 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
     addToCart,
     removeFromCart,
     submitOrder,
-    callWaiter,
-    requestBill
+    callWaiter
   } = useLendasStore();
   const customerName = name.trim() || "Voce";
   const customerCart = cart.filter((line) => line.customerName === customerName);
