@@ -1,14 +1,13 @@
 "use client";
 
 import Image from "next/image";
-import { Boxes, Grid2X2, LogOut, Music2, Printer, WalletCards, UserPlus } from "lucide-react";
+import { Boxes, Grid2X2, LogOut, Music2, Printer, UserPlus } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { AdminView } from "./types";
 import { CategoriesManager } from "./categories-manager";
-import { ConsumerIntegrationManager } from "./consumer-integration-manager";
 import { MenuManager } from "./menu-manager";
 import { MusicRequestsManager } from "./music-requests-manager";
 import { TablesAndQr } from "./tables-and-qr";
@@ -49,8 +48,7 @@ export function AdminPanel() {
                 [Grid2X2, "Categorias", "categorias"],
                 [Printer, "QR Codes das Mesas", "qrcodes"],
                 [UserPlus, "Garcons & Equipe", "equipe"],
-                [Music2, "Pedidos de Musica", "musica"],
-                [WalletCards, "Consumer (PDV)", "consumer"]
+                [Music2, "Pedidos de Musica", "musica"]
               ].map(([Icon, label, view]) => (
                 <button
                   key={label as string}
@@ -82,7 +80,6 @@ export function AdminPanel() {
                 {activeView === "qrcodes" && "Placas e QR Codes das Mesas"}
                 {activeView === "equipe" && "Cadastrar Garcons & Equipe"}
                 {activeView === "musica" && "Fila da Cabine de Musica"}
-                {activeView === "consumer" && "Integracao Consumer (PDV)"}
               </h1>
             </div>
             <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-100">Aberto agora</Badge>
@@ -95,7 +92,6 @@ export function AdminPanel() {
           {activeView === "qrcodes" && <TablesAndQr />}
           {activeView === "equipe" && <WaitersManager />}
           {activeView === "musica" && <MusicRequestsManager />}
-          {activeView === "consumer" && <ConsumerIntegrationManager />}
         </section>
       </div>
     </main>

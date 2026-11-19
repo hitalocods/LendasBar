@@ -23,7 +23,6 @@ export function MenuManager() {
     category: "Hamburgueres",
     price: "",
     imageUrl: "",
-    consumerCode: "",
     isFeatured: false,
     isPromo: false,
     promoPrice: ""
@@ -61,7 +60,6 @@ export function MenuManager() {
       category: form.category,
       price: "",
       imageUrl: "",
-      consumerCode: "",
       isFeatured: false,
       isPromo: false,
       promoPrice: ""
@@ -98,7 +96,6 @@ export function MenuManager() {
       category: product.category,
       price: String(product.price).replace(".", ","),
       imageUrl: product.imageUrl ?? "",
-      consumerCode: product.consumerCode ?? "",
       isFeatured: Boolean(product.isFeatured),
       isPromo: Boolean(product.isPromo),
       promoPrice: product.promoPrice ? String(product.promoPrice).replace(".", ",") : ""
@@ -182,9 +179,6 @@ export function MenuManager() {
             )}
           </div>
 
-          <Field label="Codigo Consumer (ID PDV)">
-            <Input value={form.consumerCode} onChange={(event) => setForm({ ...form, consumerCode: event.target.value })} placeholder="Ex: 104 ou BEB-01" />
-          </Field>
           <Field label="Foto do Produto">
             <div className="space-y-2">
               <Input value={form.imageUrl} onChange={(event) => setForm({ ...form, imageUrl: event.target.value })} placeholder="https://... ou faça upload" />

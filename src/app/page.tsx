@@ -13,7 +13,7 @@ export default function Home() {
         <p className="text-xs uppercase tracking-[0.22em] text-red-300">LENDAS 2018</p>
         <h1 className="mt-2 text-2xl sm:text-3xl font-semibold">Cardápio Digital & Som</h1>
         <p className="mt-2 text-sm text-zinc-500">
-          Integração automática com o Programa Consumer (PDV).
+          Gestão completa de mesas, pedidos e cardápio.
         </p>
         <div className="mt-6 grid gap-3">
           <Button asChild className="h-11 sm:h-12 font-bold text-sm sm:text-base">

@@ -313,7 +313,7 @@ export function TablesAndQr() {
       <Card className="border-white/10 bg-black/45 p-4">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
           <div>
-            <h2 className="text-lg font-semibold">Painel de Mesas — Estilo Consumer ({displayTables.length})</h2>
+            <h2 className="text-lg font-semibold">Painel de Mesas — ({displayTables.length})</h2>
             <p className="text-xs text-zinc-500">Visão em bloco com identificação do garçom, valor e status do caixa.</p>
           </div>
           <Button variant="outline" size="sm" onClick={printAllQrCodes} className="gap-1.5 border-white/20 text-xs font-semibold hover:bg-white/10">
@@ -322,7 +322,7 @@ export function TablesAndQr() {
           </Button>
         </div>
 
-        {/* Filtros de Status (Estilo Caixa Consumer) */}
+        {/* Filtros de Status */}
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <Button
             size="sm"
@@ -358,7 +358,7 @@ export function TablesAndQr() {
           </Button>
         </div>
 
-        {/* Grid de Mesas Estilo Consumer */}
+        {/* Grid de Mesas */}
         <div className="grid grid-cols-2 min-[520px]:grid-cols-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {filteredTables.map((table) => {
             const isOccupied = Boolean(table.sessionId);

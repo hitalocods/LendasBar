@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
-import { sendOrderToConsumer } from "@/lib/consumer-api";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { hasStaffAccess } from "@/lib/auth";
 
@@ -179,7 +178,6 @@ export async function POST(request: Request) {
   let restaurantId = payload.restaurantId;
   let tableId = payload.tableId;
   let sessionId = payload.sessionId;
-  let tableNumber: number | undefined = undefined;
 
   if (payload.tableToken) {
     const table = await db.table.findUnique({
@@ -191,7 +189,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Table not found" }, { status: 404 });
     }
 
-    tableNumber = table.number;
     restaurantId = table.restaurantId;
     tableId = table.id;
     sessionId =
@@ -318,49 +315,6 @@ export async function POST(request: Request) {
       },
       { status: 409 }
     );
-  }
-
-  // Disparo assíncrono para o Consumer (PDV)
-  if (result.order && typeof result.order === "object" && "id" in result.order) {
-    const createdOrder = result.order as {
-      id: string;
-      customerName: string;
-      items: Array<{ productName: string; quantity: number; unitCents: number; notes?: string | null }>;
-    };
-
-    sendOrderToConsumer({
-      id: createdOrder.id,
-      restaurantId: restaurantId!,
-      customerName: createdOrder.customerName,
-      tableNumber,
-      createdAt: new Date(),
-      items: createdOrder.items.map((i, idx) => ({
-        id: `item_${createdOrder.id}_${idx}`,
-        productName: i.productName,
-        productCode: null,
-        quantity: i.quantity,
-        unitCents: i.unitCents,
-        notes: i.notes
-      }))
-    }).then(async (syncResult) => {
-      const dbInst = getDb() as unknown as { order: { update: (args: unknown) => Promise<unknown> } };
-      if (syncResult.success) {
-        await dbInst.order.update({
-          where: { id: createdOrder.id },
-          data: {
-            consumerOrderId: syncResult.consumerOrderId,
-            syncStatus: "SYNCED",
-            syncedAt: new Date()
-          }
-        }).catch(console.error);
-      } else {
-        // Mantém PENDING para o Polling do Consumer Desktop puxar
-        await dbInst.order.update({
-          where: { id: createdOrder.id },
-          data: { syncStatus: "PENDING" }
-        }).catch(console.error);
-      }
-    }).catch(console.error);
   }
 
   return NextResponse.json({ order: result.order });

@@ -10,7 +10,6 @@ type ProductRecord = {
   description: string;
   imageUrl: string | null;
   priceCents: number;
-  consumerCode: string | null;
   isFeatured: boolean;
   isPromo: boolean;
   promoPriceCents: number | null;
@@ -56,7 +55,6 @@ function toClientProduct(product: ProductRecord) {
     description: product.description,
     imageUrl: product.imageUrl || getProductMockImage(product.name, product.category?.name),
     price: product.priceCents / 100,
-    consumerCode: product.consumerCode,
     isFeatured: product.isFeatured ?? false,
     isPromo: product.isPromo ?? false,
     promoPrice: product.promoPriceCents ? product.promoPriceCents / 100 : null,
@@ -116,7 +114,6 @@ export async function POST(request: Request) {
     category?: string;
     price?: number;
     imageUrl?: string;
-    consumerCode?: string;
     isFeatured?: boolean;
     isPromo?: boolean;
     promoPrice?: number;
@@ -153,7 +150,6 @@ export async function POST(request: Request) {
       name: body.name.trim(),
       description: body.description.trim(),
       imageUrl: body.imageUrl?.trim() || null,
-      consumerCode: body.consumerCode?.trim() || null,
       priceCents: Math.round(Number(body.price) * 100),
       isFeatured: Boolean(body.isFeatured),
       isPromo: Boolean(body.isPromo),

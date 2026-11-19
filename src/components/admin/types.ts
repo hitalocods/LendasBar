@@ -1,4 +1,4 @@
-export type AdminView = "cardapio" | "categorias" | "qrcodes" | "equipe" | "musica" | "consumer";
+export type AdminView = "cardapio" | "categorias" | "qrcodes" | "equipe" | "musica";
 export type Product = {
   id: string;
   name: string;
@@ -6,7 +6,6 @@ export type Product = {
   category: string;
   price: number;
   imageUrl?: string;
-  consumerCode?: string | null;
   isFeatured?: boolean;
   isPromo?: boolean;
   promoPrice?: number | null;
