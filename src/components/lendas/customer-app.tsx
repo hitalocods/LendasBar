@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Bell, Minus, Music2, Plus, Search, ShoppingBag, Trash2, Utensils } from "lucide-react";
+import { Bell, CreditCard, LayoutGrid, Minus, Music2, Plus, Search, ShoppingBag, Trash2, Utensils } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,9 +34,18 @@ type TableSessionUser = {
   isHost?: boolean;
 };
 
-export function CustomerApp({ tableId, initialName }: { tableId: string; initialName: string }) {
-  const [step, setStep] = useState<Step>(initialName ? "menu" : "welcome");
-  const [name, setName] = useState(initialName);
+export function CustomerApp({
+  tableId,
+  initialName,
+  waiterName
+}: {
+  tableId: string;
+  initialName: string;
+  waiterName?: string;
+}) {
+  const isWaiter = Boolean(waiterName);
+  const [step, setStep] = useState<Step>(initialName || isWaiter ? "menu" : "welcome");
+  const [name, setName] = useState(initialName || (isWaiter ? `Garçom (${waiterName})` : ""));
   const [category, setCategory] = useState(categories[0]);
   const [products, setProducts] = useState<Product[]>(menuItems);
   const [bill, setBill] = useState<TableBill | null>(null);
@@ -45,6 +55,7 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
   const [quantity, setQuantity] = useState(1);
   const [isSendingOrder, setIsSendingOrder] = useState(false);
   const [orderSendFeedback, setOrderSendFeedback] = useState<string | null>(null);
+  const [billRequested, setBillRequested] = useState(false);
   const [musicTitle, setMusicTitle] = useState("");
   const [musicArtist, setMusicArtist] = useState("");
   const [musicNotes, setMusicNotes] = useState("");
@@ -140,12 +151,13 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
   }, [loadBill, step]);
 
   useEffect(() => {
-    if (initialName) {
+    const customerToRegister = initialName || (waiterName ? `Garçom (${waiterName})` : "");
+    if (customerToRegister) {
       window.setTimeout(() => {
-        registerSessionUser(initialName).catch(() => {});
+        registerSessionUser(customerToRegister).catch(() => {});
       }, 0);
     }
-  }, [initialName, registerSessionUser]);
+  }, [initialName, waiterName, registerSessionUser]);
 
   function addSelectedProduct() {
     if (!selectedProduct) return;
@@ -221,6 +233,24 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
     }).catch(() => {});
   }
 
+  async function sendBillRequest(notes?: string) {
+    try {
+      await fetch("/api/waiter-calls", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tableToken: tableId,
+          customerName: waiterName
+            ? `Garçom ${waiterName}${notes ? ` (${notes})` : ""}`
+            : notes ? `${customerName} (${notes})` : customerName,
+          type: "BILL"
+        })
+      });
+      setBillRequested(true);
+      await loadBill();
+    } catch {}
+  }
+
   function enterTable() {
     document.cookie = `lendas_mesa_${tableId}_name=${encodeURIComponent(name.trim())}; path=/mesa/${tableId}; max-age=2592000; samesite=lax`;
     joinTable(name, tableId);
@@ -236,12 +266,32 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
     setStep("welcome");
   }
 
-
-  const isHost = sessionUser?.isHost ?? (hostUser ? sessionUser?.name === hostUser.name : true);
+  const isHost = isWaiter ? true : (sessionUser?.isHost ?? (hostUser ? sessionUser?.name === hostUser.name : true));
 
   return (
     <main className="min-h-screen bg-background text-foreground" style={toThemeStyle({ ...restaurant, background: "#050505" })}>
       <div className="mx-auto min-h-screen w-full max-w-7xl bg-[#07080a] shadow-[0_0_80px_rgba(0,0,0,0.7)] xl:border-x xl:border-white/[0.04]">
+        {isWaiter && (
+          <header className="sticky top-0 z-40 border-b border-amber-500/40 bg-zinc-950/95 px-4 py-2.5 backdrop-blur-md shadow-lg">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Badge className="border-amber-400 bg-amber-500 font-black text-black text-[11px] uppercase tracking-wider">
+                  Modo Garçom
+                </Badge>
+                <span className="text-xs sm:text-sm font-semibold text-white">
+                  Mesa <strong className="text-amber-400">{tableId}</strong> · {waiterName}
+                </span>
+              </div>
+              <Link
+                href={"/garcom" as any}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-white/20"
+              >
+                <LayoutGrid className="h-4 w-4 text-amber-400" />
+                <span>Voltar às Mesas</span>
+              </Link>
+            </div>
+          </header>
+        )}
         <div className="relative flex min-h-screen flex-col overflow-hidden">
           <div className="absolute inset-x-0 top-0 h-56 bg-[radial-gradient(ellipse_at_50%_0%,rgba(215,25,32,0.28),transparent_70%)]" />
           <div className="relative flex-1 px-4 min-[520px]:px-6 md:px-8 lg:px-10 pb-28 pt-4 min-[520px]:pt-6">
@@ -260,6 +310,7 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
                 onReset={resetCustomer}
                 cartCount={cartCount}
                 isHost={isHost}
+                waiterName={waiterName}
               />
             )}
             {step === "cart" && (
@@ -275,9 +326,12 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
                 isHost={isHost}
                 hostName={hostUser?.name}
                 onExploreMenu={() => setStep("menu")}
+                onBill={sendBillRequest}
+                billRequested={billRequested}
+                waiterName={waiterName}
               />
             )}
-            {step === "sent" && <OrderSentScreen onBackToMenu={() => setStep("menu")} />}
+            {step === "sent" && <OrderSentScreen onBackToMenu={() => setStep("menu")} waiterName={waiterName} />}
             {step === "music" && (
               <MusicScreen
                 customerName={customerName}
@@ -292,11 +346,19 @@ export function CustomerApp({ tableId, initialName }: { tableId: string; initial
                 setMusicSent={setMusicSent}
               />
             )}
-            {step === "waiter" && <WaiterScreen tableId={tableId} onWaiter={sendWaiterCall} />}
+            {step === "waiter" && (
+              <WaiterScreen
+                tableId={tableId}
+                onWaiter={sendWaiterCall}
+                onBill={sendBillRequest}
+                billRequested={billRequested}
+                waiterName={waiterName}
+              />
+            )}
           </div>
 
           {step !== "welcome" && step !== "sent" && (
-            <CustomerNav active={step} setStep={setStep} cartCount={cartCount} />
+            <CustomerNav active={step} setStep={setStep} cartCount={cartCount} waiterName={waiterName} />
           )}
 
           {selectedProduct && (
@@ -365,7 +427,8 @@ function MenuScreen({
   onCart,
   onReset,
   cartCount,
-  isHost
+  isHost,
+  waiterName
 }: {
   tableId: string;
   customerName: string;
@@ -379,6 +442,7 @@ function MenuScreen({
   onReset: () => void;
   cartCount: number;
   isHost?: boolean;
+  waiterName?: string;
 }) {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -411,14 +475,18 @@ function MenuScreen({
             </p>
             <div className="flex items-center gap-2">
               <h1 className="text-2xl md:text-3xl font-bold">Olá, {customerName} 👋</h1>
-              {isHost && (
+              {waiterName ? (
+                <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-[10px] px-2 py-0.5 font-bold">
+                  🛎️ Garçom: {waiterName}
+                </Badge>
+              ) : isHost && (
                 <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-[10px] px-2 py-0.5 font-bold">
                   👑 Líder
                 </Badge>
               )}
             </div>
             <button onClick={onReset} className="mt-0.5 text-xs text-zinc-400 hover:text-red-300 underline">
-              Trocar nome
+              {waiterName ? "Mudar comanda/cliente" : "Trocar nome"}
             </button>
           </div>
           <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border border-red-500/40 shadow-lg min-[520px]:hidden">
@@ -635,7 +703,10 @@ function SharedCart({
   sendFeedback,
   isHost,
   hostName,
-  onExploreMenu
+  onExploreMenu,
+  onBill,
+  billRequested,
+  waiterName
 }: {
   customerName: string;
   cart: Array<{ id: string; productName: string; customerName: string; quantity: number; unitPrice: number }>;
@@ -648,6 +719,9 @@ function SharedCart({
   isHost?: boolean;
   hostName?: string;
   onExploreMenu?: () => void;
+  onBill?: () => void | Promise<void>;
+  billRequested?: boolean;
+  waiterName?: string;
 }) {
   const grouped = cart.reduce<Record<string, typeof cart>>((groups, line) => {
     groups[line.customerName] = [...(groups[line.customerName] || []), line];
@@ -659,7 +733,9 @@ function SharedCart({
   return (
     <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
       <div className="mb-5">
-        <p className="text-xs font-semibold uppercase tracking-wider text-red-400">Fazer Pedido</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-red-400">
+          {waiterName ? "Lançar Pedido do Garçom" : "Fazer Pedido"}
+        </p>
         <h1 className="text-2xl sm:text-3xl font-bold text-white">Carrinho da Mesa</h1>
         <p className="mt-0.5 text-xs sm:text-sm text-zinc-400">Revise os itens e envie para a cozinha ou bar.</p>
       </div>
@@ -714,7 +790,7 @@ function SharedCart({
                       key={line.id}
                       label={`${line.quantity}x ${line.productName}`}
                       value={line.quantity * line.unitPrice}
-                      onRemove={guest === customerName ? () => onRemove(line.id) : undefined}
+                      onRemove={guest === customerName || Boolean(waiterName) ? () => onRemove(line.id) : undefined}
                     />
                   ))}
                 </div>
@@ -723,19 +799,48 @@ function SharedCart({
           </div>
           <div className="lg:sticky lg:top-6 rounded-xl border border-white/10 bg-black/60 p-5 shadow-xl">
             <div className="flex items-center justify-between text-sm text-zinc-300">
-              <span className="font-medium">Total dos pedidos da mesa</span>
+              <span className="font-medium">Total da comanda da mesa</span>
               <span className="text-2xl font-bold text-red-400">{formatCurrency(tableBillTotal)}</span>
             </div>
 
             {isHost ? (
-              <Button className="mt-5 w-full h-12 text-sm font-bold shadow-lg" disabled={cart.length === 0 || isSending} onClick={onSend}>
-                {isSending ? "Enviando pedido..." : "Enviar pedido da mesa"}
+              <Button
+                className={cn(
+                  "mt-5 w-full h-12 text-sm font-bold shadow-lg transition",
+                  waiterName ? "bg-emerald-600 hover:bg-emerald-500 text-white" : ""
+                )}
+                disabled={cart.length === 0 || isSending}
+                onClick={onSend}
+              >
+                {isSending
+                  ? "Enviando pedido..."
+                  : waiterName
+                    ? "Lançar pedido na mesa (Garçom)"
+                    : "Enviar pedido da mesa"}
               </Button>
             ) : (
               <Button className="mt-5 w-full h-12 font-medium bg-zinc-800 text-zinc-400 border border-white/10 opacity-90 cursor-not-allowed" disabled>
                 👑 Aguardando {hostName || "o Líder"} enviar o pedido
               </Button>
             )}
+
+            {onBill && (tableBillTotal > 0 || realGroups.length > 0) && (
+              <Button
+                variant="outline"
+                className={cn(
+                  "mt-3 w-full h-11 border font-bold text-xs gap-2 transition",
+                  billRequested
+                    ? "border-emerald-500/40 bg-emerald-500/20 text-emerald-300"
+                    : "border-amber-500/50 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"
+                )}
+                onClick={onBill}
+                disabled={billRequested}
+              >
+                <CreditCard className="h-4 w-4" />
+                {billRequested ? "Conta solicitada à equipe ✓" : waiterName ? "Sinalizar pedido de conta" : "Pedir a conta da mesa"}
+              </Button>
+            )}
+
             {sendFeedback && (
               <p className="mt-3 text-center text-xs text-amber-200">{sendFeedback}</p>
             )}
@@ -760,17 +865,31 @@ function Line({ label, value, onRemove }: { label: string; value: number; onRemo
   );
 }
 
-function OrderSentScreen({ onBackToMenu }: { onBackToMenu: () => void }) {
+function OrderSentScreen({ onBackToMenu, waiterName }: { onBackToMenu: () => void; waiterName?: string }) {
   return (
     <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} className="max-w-xl mx-auto py-4">
       <h1 className="mb-1 text-2xl sm:text-3xl font-semibold">Pedido enviado!</h1>
-      <p className="mb-5 text-sm text-zinc-500">Recebemos seu pedido e a equipe do bar já começou a preparar.</p>
-      <Card className="border-red-500/20 bg-white/[0.045] p-6 sm:p-8 text-center">
+      <p className="mb-5 text-sm text-zinc-500">
+        {waiterName
+          ? "O pedido foi registrado para a mesa e já entrou na fila da cozinha/bar."
+          : "Recebemos seu pedido e a equipe do bar já começou a preparar."}
+      </p>
+      <Card className="border-red-500/20 bg-white/[0.045] p-6 sm:p-8 text-center space-y-4">
         <p className="text-2xl sm:text-3xl font-bold text-red-400">Pedido enviado com sucesso</p>
-        <p className="mt-2 text-xs sm:text-sm text-zinc-400">Acompanhe seus pedidos ou adicione mais itens pelo cardápio.</p>
-        <Button className="mt-6 w-full font-bold h-12" onClick={onBackToMenu}>
-          Voltar ao cardápio
-        </Button>
+        <p className="text-xs sm:text-sm text-zinc-400">Acompanhe seus pedidos ou adicione mais itens pelo cardápio.</p>
+        <div className="flex flex-col gap-2.5 pt-2">
+          {waiterName && (
+            <Button asChild className="h-12 w-full font-bold bg-amber-500 hover:bg-amber-400 text-black">
+              <Link href={"/garcom" as any} className="inline-flex items-center justify-center gap-2">
+                <LayoutGrid className="h-4 w-4" />
+                Voltar ao Mapa de Mesas
+              </Link>
+            </Button>
+          )}
+          <Button variant={waiterName ? "outline" : "default"} className="w-full font-bold h-12" onClick={onBackToMenu}>
+            {waiterName ? "Lançar mais itens nesta mesa" : "Voltar ao cardápio"}
+          </Button>
+        </div>
       </Card>
     </motion.section>
   );
@@ -778,14 +897,23 @@ function OrderSentScreen({ onBackToMenu }: { onBackToMenu: () => void }) {
 
 function WaiterScreen({
   tableId,
-  onWaiter
+  onWaiter,
+  onBill,
+  billRequested,
+  waiterName
 }: {
   tableId: string;
   onWaiter: (reason?: string) => Promise<void> | void;
+  onBill?: (notes?: string) => Promise<void> | void;
+  billRequested?: boolean;
+  waiterName?: string;
 }) {
-  const [sent, setSent] = useState(false);
-  const [calling, setCalling] = useState(false);
+  const [sentWaiter, setSentWaiter] = useState(false);
+  const [callingWaiter, setCallingWaiter] = useState(false);
+  const [callingBill, setCallingBill] = useState(false);
+  const [sentBill, setSentBill] = useState(Boolean(billRequested));
   const [selectedReason, setSelectedReason] = useState("Atendimento na mesa");
+  const [selectedPayment, setSelectedPayment] = useState("Cartão de Crédito");
 
   const quickReasons = [
     "Atendimento na mesa",
@@ -795,14 +923,34 @@ function WaiterScreen({
     "Dúvida do cardápio"
   ];
 
-  async function handleCall(reason?: string) {
+  const paymentMethods = [
+    "Cartão de Crédito",
+    "Cartão de Débito",
+    "PIX",
+    "Dinheiro",
+    "Dividir a Conta"
+  ];
+
+  async function handleCallWaiter(reason?: string) {
     const finalReason = reason || selectedReason;
-    setCalling(true);
+    setCallingWaiter(true);
     try {
       await onWaiter(finalReason);
-      setSent(true);
+      setSentWaiter(true);
     } finally {
-      setCalling(false);
+      setCallingWaiter(false);
+    }
+  }
+
+  async function handleCallBill(method?: string) {
+    if (!onBill) return;
+    const finalMethod = method || selectedPayment;
+    setCallingBill(true);
+    try {
+      await onBill(finalMethod);
+      setSentBill(true);
+    } finally {
+      setCallingBill(false);
     }
   }
 
@@ -810,77 +958,146 @@ function WaiterScreen({
     <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} className="max-w-xl mx-auto space-y-4 py-2">
       <div>
         <p className="text-xs font-semibold uppercase tracking-wider text-red-400">Mesa {tableId}</p>
-        <h1 className="text-2xl sm:text-3xl font-bold text-white">Chamar Garçom</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-white">
+          {waiterName ? "Conta & Atendimento da Mesa" : "Atendimento & Conta"}
+        </h1>
         <p className="mt-1 text-sm text-zinc-400">
-          Precisa de atendimento? Sua solicitação vai direto para a equipe no salão.
+          {waiterName
+            ? "Sinalize a conta para o caixa ou solicite apoio no salão."
+            : "Chame a equipe ou solicite o fechamento da conta direto da sua mesa."}
         </p>
       </div>
 
-      <Card className="border-red-500/30 bg-gradient-to-b from-white/[0.06] to-black/80 p-6 sm:p-8 text-center shadow-xl">
-        <div className="relative mx-auto mb-4 grid h-24 w-24 place-items-center rounded-full border border-red-500/30 bg-red-600/10 shadow-[0_0_35px_rgba(215,25,32,0.25)]">
-          <Bell className={cn("h-12 w-12 text-red-400 transition-all", calling && "animate-bounce", sent && "text-emerald-400 scale-110")} />
+      {/* Card 1: Pedir a Conta */}
+      <Card className="border-amber-500/30 bg-gradient-to-b from-amber-950/20 to-black/80 p-5 sm:p-6 shadow-xl">
+        <div className="flex items-start gap-4">
+          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-amber-500/30 bg-amber-500/10 text-amber-400">
+            <CreditCard className="h-6 w-6" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-lg font-bold text-white">
+                {waiterName ? "Sinalizar Pedido de Conta" : "Pedir a Conta"}
+              </h2>
+              {(sentBill || billRequested) && (
+                <Badge className="border-amber-500/40 bg-amber-500/20 text-amber-300 font-bold text-[10px]">
+                  ✓ Solicitada
+                </Badge>
+              )}
+            </div>
+            <p className="mt-0.5 text-xs text-zinc-400">
+              {sentBill || billRequested
+                ? "A solicitação foi enviada. A mesa já está sinalizada no mapa com alerta amarelo."
+                : "Notifica o caixa e a equipe para trazer a máquina de cartão ou troco."}
+            </p>
+
+            <div className="mt-3 space-y-2">
+              <p className="text-[11px] font-semibold text-zinc-400">Forma de pagamento pretendida:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {paymentMethods.map((method) => (
+                  <button
+                    key={method}
+                    type="button"
+                    onClick={() => {
+                      setSelectedPayment(method);
+                      if (!sentBill && !billRequested) handleCallBill(method);
+                    }}
+                    className={cn(
+                      "rounded-lg border px-2.5 py-1 text-xs font-medium transition",
+                      selectedPayment === method
+                        ? "border-amber-500/60 bg-amber-500/20 text-amber-300 font-bold"
+                        : "border-white/10 bg-white/[0.04] text-zinc-400 hover:border-white/20 hover:text-white"
+                    )}
+                  >
+                    {method}
+                  </button>
+                ))}
+              </div>
+
+              <Button
+                type="button"
+                onClick={() => handleCallBill()}
+                disabled={callingBill || sentBill || billRequested}
+                className={cn(
+                  "mt-3 w-full h-11 font-bold text-xs sm:text-sm shadow-lg",
+                  sentBill || billRequested
+                    ? "bg-amber-500/30 text-amber-200 border border-amber-500/40"
+                    : "bg-amber-500 hover:bg-amber-400 text-black shadow-amber-950/40"
+                )}
+              >
+                <CreditCard className="mr-2 h-4 w-4" />
+                {callingBill
+                  ? "Sinalizando..."
+                  : sentBill || billRequested
+                    ? "Conta Solicitada à Equipe ✓"
+                    : "Pedir Fechamento da Conta"}
+              </Button>
+            </div>
+          </div>
         </div>
-
-        {sent ? (
-          <div className="space-y-2">
-            <Badge className="border-emerald-500/40 bg-emerald-500/20 px-3 py-1 text-xs font-bold text-emerald-300">
-              ✓ Garçom Chamado
-            </Badge>
-            <h2 className="text-lg sm:text-xl font-bold text-white">Equipe Notificada!</h2>
-            <p className="text-xs sm:text-sm text-zinc-300">
-              A equipe da Mesa {tableId} já recebeu seu chamado e logo vem ao seu encontro.
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleCall()}
-              disabled={calling}
-              className="mt-3 border-white/10 text-xs sm:text-sm text-zinc-300 hover:text-white"
-            >
-              {calling ? "Chamando..." : "Chamar novamente se demorar"}
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <h2 className="text-lg sm:text-xl font-bold text-white">Chamar atendimento agora</h2>
-            <p className="text-xs sm:text-sm text-zinc-400">
-              Clique no botão para notificar o garçom responsável pela sua mesa.
-            </p>
-
-            <Button
-              onClick={() => handleCall()}
-              disabled={calling}
-              className="w-full h-14 bg-red-600 hover:bg-red-500 text-base font-extrabold shadow-lg shadow-red-950/50"
-            >
-              <Bell className="mr-2 h-5 w-5" />
-              {calling ? "Chamando garçom..." : "Chamar Garçom"}
-            </Button>
-          </div>
-        )}
       </Card>
 
-      <div className="space-y-2 pt-2">
-        <p className="text-xs font-semibold text-zinc-400">Motivo rápido (opcional):</p>
-        <div className="flex flex-wrap gap-2">
-          {quickReasons.map((reason) => (
-            <button
-              key={reason}
-              onClick={() => {
-                setSelectedReason(reason);
-                if (!sent) handleCall(reason);
-              }}
-              className={cn(
-                "rounded-lg border px-3 py-1.5 text-xs sm:text-sm font-medium transition",
-                selectedReason === reason
-                  ? "border-red-500/60 bg-red-600/20 text-white"
-                  : "border-white/10 bg-white/[0.04] text-zinc-400 hover:border-white/20 hover:text-white"
-              )}
-            >
-              {reason}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Card 2: Chamar Garçom (Atendimento rápido) */}
+      {!waiterName && (
+        <Card className="border-red-500/30 bg-gradient-to-b from-red-950/20 to-black/80 p-5 sm:p-6 shadow-xl">
+          <div className="flex items-start gap-4">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-red-500/30 bg-red-500/10 text-red-400">
+              <Bell className={cn("h-6 w-6", callingWaiter && "animate-bounce")} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-lg font-bold text-white">Chamar Atendimento</h2>
+                {sentWaiter && (
+                  <Badge className="border-emerald-500/40 bg-emerald-500/20 text-emerald-300 font-bold text-[10px]">
+                    ✓ Chamado
+                  </Badge>
+                )}
+              </div>
+              <p className="mt-0.5 text-xs text-zinc-400">
+                O garçom responsável receberá um alerta imediato na tela dele.
+              </p>
+
+              <div className="mt-3 space-y-2">
+                <p className="text-[11px] font-semibold text-zinc-400">Motivo rápido (opcional):</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {quickReasons.map((reason) => (
+                    <button
+                      key={reason}
+                      type="button"
+                      onClick={() => {
+                        setSelectedReason(reason);
+                        if (!sentWaiter) handleCallWaiter(reason);
+                      }}
+                      className={cn(
+                        "rounded-lg border px-2.5 py-1 text-xs font-medium transition",
+                        selectedReason === reason
+                          ? "border-red-500/60 bg-red-600/20 text-white font-bold"
+                          : "border-white/10 bg-white/[0.04] text-zinc-400 hover:border-white/20 hover:text-white"
+                      )}
+                    >
+                      {reason}
+                    </button>
+                  ))}
+                </div>
+
+                <Button
+                  type="button"
+                  onClick={() => handleCallWaiter()}
+                  disabled={callingWaiter}
+                  className="mt-3 w-full h-11 bg-red-600 hover:bg-red-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-red-950/40"
+                >
+                  <Bell className="mr-2 h-4 w-4" />
+                  {callingWaiter
+                    ? "Chamando garçom..."
+                    : sentWaiter
+                      ? "Chamar Novamente se Demorar"
+                      : "Chamar Garçom na Mesa"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
     </motion.section>
   );
 }
@@ -976,23 +1193,53 @@ function MusicScreen({
   );
 }
 
-function CustomerNav({ active, setStep, cartCount }: { active: Step; setStep: (step: Step) => void; cartCount: number }) {
-  const items = [
-    ["menu", Utensils, "Cardápio"],
-    ["cart", ShoppingBag, "Fazer Pedido"],
-    ["music", Music2, "Pedir Música"],
-    ["waiter", Bell, "Chamar Garçom"]
-  ] as const;
+function CustomerNav({
+  active,
+  setStep,
+  cartCount,
+  waiterName
+}: {
+  active: Step;
+  setStep: (step: Step) => void;
+  cartCount: number;
+  waiterName?: string;
+}) {
+  const items = waiterName
+    ? ([
+        ["menu", Utensils, "Cardápio"],
+        ["cart", ShoppingBag, "Lançar Pedido"],
+        ["waiter", CreditCard, "Pedir Conta"],
+        ["tables", LayoutGrid, "Mesas"]
+      ] as const)
+    : ([
+        ["menu", Utensils, "Cardápio"],
+        ["cart", ShoppingBag, "Fazer Pedido"],
+        ["music", Music2, "Música"],
+        ["waiter", Bell, "Atendimento"]
+      ] as const);
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 w-full border-t border-white/10 bg-black/95 backdrop-blur-xl">
       <div className="mx-auto grid max-w-4xl grid-cols-4 px-2 py-2.5 min-[520px]:py-3">
         {items.map(([step, Icon, label]) => {
+          if (step === "tables") {
+            return (
+              <Link
+                key="tables-nav-link"
+                href={"/garcom" as any}
+                className="relative flex flex-col items-center justify-center gap-1 rounded-xl py-1 text-[11px] min-[520px]:text-xs font-semibold text-amber-400 hover:text-amber-300 transition-colors"
+              >
+                <Icon className="h-5 w-5 min-[520px]:h-6 min-[520px]:w-6" />
+                <span>{label}</span>
+              </Link>
+            );
+          }
+
           const isActive = active === step;
           return (
             <button
               key={step}
-              onClick={() => setStep(step)}
+              onClick={() => setStep(step as Step)}
               className={cn(
                 "relative flex flex-col items-center justify-center gap-1 rounded-xl py-1 text-[11px] min-[520px]:text-xs font-medium transition-colors",
                 isActive ? "text-red-500 font-bold" : "text-zinc-400 hover:text-zinc-200"

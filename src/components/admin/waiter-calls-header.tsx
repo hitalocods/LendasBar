@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { playChime } from "@/lib/chime";
 
 type ActiveCall = {
   id: string;
@@ -23,21 +24,6 @@ export function WaiterCallsHeader() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const previousCallsCountRef = useRef(0);
 
-  const playChime = useCallback(() => {
-    try {
-      const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(880, ctx.currentTime);
-      gain.gain.setValueAtTime(0.3, ctx.currentTime);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.5);
-    } catch {}
-  }, []);
-
   const loadCalls = useCallback(async () => {
     const res = await fetch("/api/waiter-calls", { cache: "no-store" });
     if (!res.ok) return;
@@ -49,7 +35,7 @@ export function WaiterCallsHeader() {
     }
     previousCallsCountRef.current = activeCalls.length;
     setCalls(activeCalls);
-  }, [playChime, soundEnabled]);
+  }, [soundEnabled]);
 
   useEffect(() => {
     window.setTimeout(loadCalls, 0);

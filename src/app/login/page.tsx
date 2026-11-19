@@ -12,7 +12,9 @@ async function login(formData: FormData) {
   "use server";
 
   const password = String(formData.get("password") ?? "").trim();
-  const safeNext = (String(formData.get("next") ?? "/admin").trim() || "/admin") as Route;
+  const requestedNext = String(formData.get("next") ?? "").trim();
+  // Só aceita caminhos internos (evita redirecionamento para sites externos).
+  const safeNext = (requestedNext.startsWith("/") && !requestedNext.startsWith("//") ? requestedNext : "") as string;
 
   if (!password) {
     redirect(`/login?next=${encodeURIComponent(safeNext)}&error=1` as Route);
@@ -128,7 +130,8 @@ async function login(formData: FormData) {
     }
   );
 
-  redirect(safeNext);
+  const destination = safeNext || (sessionPayload.role === "WAITER" ? "/garcom" : "/admin");
+  redirect(destination as Route);
 }
 
 export default async function LoginPage({
@@ -137,7 +140,7 @@ export default async function LoginPage({
   searchParams: Promise<{ next?: string; error?: string }>;
 }) {
   const params = await searchParams;
-  const next = params.next || "/admin";
+  const next = params.next ?? "";
 
   return (
     <main className="noise grid min-h-screen place-items-center bg-background p-4 text-foreground">
